@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-obsidian: #070912;
+  --gold-accent: #eab308;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #070912;
+  color: #f8fafc;
+  font-family: var(--font-sans-bn), "Hind Siliguri", sans-serif;
+  overflow-x: hidden;
+}
+
+/* Realistic 3D Hardcover Book Spine & Page Edges */
+.book-card-3d {
+  perspective: 1200px;
+}
+
+.book-cover-inner {
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: -8px 14px 32px rgba(0, 0, 0, 0.65),
+    inset 4px 0 10px rgba(255, 255, 255, 0.12),
+    inset 14px 0 22px rgba(0, 0, 0, 0.48);
+}
+
+.book-card-3d:hover .book-cover-inner {
+  transform: rotateY(-9deg) translateY(-6px) scale(1.015);
+  box-shadow: -18px 26px 48px rgba(0, 0, 0, 0.82),
+    6px 6px 0 #e2d9c8,
+    10px 10px 0 #cfc3ad,
+    inset 4px 0 12px rgba(255, 255, 255, 0.2);
+}
+
+.book-spine-groove {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.6) 0%,
+    rgba(255, 255, 255, 0.18) 28%,
+    rgba(0, 0, 0, 0.45) 65%,
+    transparent 100%
+  );
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(234, 179, 8, 0.35);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(234, 179, 8, 0.6);
+}
