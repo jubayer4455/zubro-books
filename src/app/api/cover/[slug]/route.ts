@@ -35,7 +35,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": cover.mime_type || "image/png",
-      "Cache-Control": "public, s-maxage=31536000, stale-while-revalidate=86400",
+      "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=86400",
     },
   });
 }

@@ -3,23 +3,21 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  BookOpen,
+  ArrowLeft,
+  Check,
   Edit3,
   Eye,
   EyeOff,
-  KeyRound,
   LogOut,
   Plus,
   Save,
-  Settings,
   Star,
   Trash2,
   Upload,
-  ArrowLeft,
-  CheckCircle2,
 } from "lucide-react";
 import { DEFAULT_SETTINGS, ZubroBook, ZubroSettings } from "@/lib/supabase";
-import { estimateReadingTimeMinutes } from "@/lib/chapters";
+import { estimateReadingTimeMinutes, toBanglaNumber } from "@/lib/chapters";
+import BookCoverArtwork from "@/components/BookCoverArtwork";
 
 const CATEGORY_OPTIONS = [
   { value: "masterpiece", label: "মাস্টারপিস গল্প" },
@@ -39,7 +37,6 @@ export default function AdminDashboardPage() {
   const [books, setBooks] = useState<ZubroBook[]>([]);
   const [settings, setSettings] = useState<ZubroSettings>(DEFAULT_SETTINGS);
 
-  // Editor state
   const [editingBook, setEditingBook] = useState<Partial<ZubroBook>>({
     title: "",
     subtitle: "",
@@ -53,9 +50,9 @@ export default function AdminDashboardPage() {
     is_published: true,
   });
   const [coverBase64, setCoverBase64] = useState<string | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [coverMime, setCoverMime] = useState<string>("image/jpeg");
 
-  // Password change state
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
 
@@ -75,7 +72,7 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setErrorMsg(data.error || "পাসওয়ার্ড সঠিক নয়!");
+        setErrorMsg(data.error || "পাসওয়ার্ড সঠিক নয়।");
         setAuthenticated(false);
       } else {
         setBooks(data.books || []);
@@ -84,7 +81,7 @@ export default function AdminDashboardPage() {
         sessionStorage.setItem("zubro_admin_pw", pw);
       }
     } catch {
-      setErrorMsg("সার্ভারের সাথে সংযোগ করা যায়নি।");
+      setErrorMsg("সার্ভারের সাথে সংযোগ স্থাপন করা যায়নি।");
     } finally {
       setLoading(false);
     }
@@ -123,16 +120,17 @@ export default function AdminDashboardPage() {
       is_published: true,
     });
     setCoverBase64(null);
+    setCoverPreviewUrl(null);
     setTab("editor");
   };
 
   const openEditBook = (b: ZubroBook) => {
     setEditingBook({ ...b });
     setCoverBase64(null);
+    setCoverPreviewUrl(b.cover_image_url || null);
     setTab("editor");
   };
 
-  // Compress uploaded banner image cleanly in browser to crisp 900x1350 JPEG
   const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -158,9 +156,10 @@ export default function AdminDashboardPage() {
             drawH
           );
           const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+          setCoverPreviewUrl(dataUrl);
           setCoverBase64(dataUrl.replace(/^data:[^;]+;base64,/, ""));
           setCoverMime("image/jpeg");
-          showNotice("বুক কভার ব্যানার প্রস্তুত হয়েছে! সেভ বাটনে ক্লিক করুন।");
+          showNotice("মলাটের ছবি প্রস্তুত হয়েছে। সংরক্ষণ বোতামে ক্লিক করুন।");
         }
       };
       img.src = reader.result as string;
@@ -171,7 +170,7 @@ export default function AdminDashboardPage() {
   const handleSaveBook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBook.title?.trim() || !editingBook.content?.trim()) {
-      setErrorMsg("বইয়ের শিরোনাম এবং মূল গল্প অবশ্যই দিতে হবে!");
+      setErrorMsg("বইয়ের শিরোনাম এবং মূল গল্প অবশ্যই লিখতে হবে।");
       return;
     }
     setLoading(true);
@@ -203,9 +202,9 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setErrorMsg(data.error || "বই সেভ করতে সমস্যা হয়েছে।");
+        setErrorMsg(data.error || "বই সংরক্ষণ করতে সমস্যা হয়েছে।");
       } else {
-        showNotice("বইটি সফলভাবে সেভ ও পাবলিশ হয়েছে!");
+        showNotice("বইটি সফলভাবে সংরক্ষিত ও প্রকাশিত হয়েছে।");
         await fetchDashboard(password);
         setTab("books");
       }
@@ -230,14 +229,15 @@ export default function AdminDashboardPage() {
         }),
       });
       await fetchDashboard(password);
-      showNotice("আপডেট সম্পন্ন হয়েছে!");
+      showNotice("পরিবর্তন সংরক্ষিত হয়েছে।");
     } finally {
       setLoading(false);
     }
   };
 
   const handleArchiveBook = async (book: ZubroBook) => {
-    if (!confirm(`আপনি কি নিশ্চিতভাবে "${book.title}" বইটি মুছে ফেলতে চান?`)) return;
+    if (!confirm(`আপনি কি নিশ্চিতভাবে "${book.title}" বইটি তালিকা থেকে সরাতে চান?`))
+      return;
     setLoading(true);
     try {
       await fetch("/api/admin", {
@@ -250,7 +250,7 @@ export default function AdminDashboardPage() {
         }),
       });
       await fetchDashboard(password);
-      showNotice("বইটি মুছে ফেলা হয়েছে।");
+      showNotice("বইটি আর্কাইভে সরানো হয়েছে।");
     } finally {
       setLoading(false);
     }
@@ -271,7 +271,7 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        showNotice("সাইট সেটিংস সফলভাবে আপডেট হয়েছে!");
+        showNotice("প্রকাশনা সেটিংস আপডেট হয়েছে।");
       } else {
         setErrorMsg(data.error || "সেটিংস সেভ হয়নি।");
       }
@@ -283,7 +283,7 @@ export default function AdminDashboardPage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPass.length < 6 || newPass !== confirmPass) {
-      setErrorMsg("নতুন পাসওয়ার্ড দুটি মেলেনি অথবা ৬ অক্ষরের কম!");
+      setErrorMsg("নতুন পাসওয়ার্ড দুটি মেলেনি অথবা ৬ অক্ষরের কম।");
       return;
     }
     setLoading(true);
@@ -304,7 +304,7 @@ export default function AdminDashboardPage() {
         sessionStorage.setItem("zubro_admin_pw", newPass);
         setNewPass("");
         setConfirmPass("");
-        showNotice("অ্যাডমিন পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে!");
+        showNotice("পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে।");
       } else {
         setErrorMsg(data.error || "পাসওয়ার্ড পরিবর্তন করা যায়নি।");
       }
@@ -315,20 +315,20 @@ export default function AdminDashboardPage() {
 
   if (!authenticated) {
     return (
-      <div className="min-h-screen bg-[#070912] flex items-center justify-center px-4">
-        <div className="max-w-md w-full rounded-3xl bg-white/[0.04] border border-white/10 p-7 sm:p-9 shadow-2xl">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 font-bold text-2xl flex items-center justify-center mb-5">
-            Z
-          </div>
-          <h1 className="font-serifBn text-2xl font-bold text-white">
-            ZUBRO অ্যাডমিন প্যানেল
+      <div className="min-h-screen bg-[#F4EFE6] text-[#191613] flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-[#FAF7F0] border border-[#D6CCBC] p-8 sm:p-10 shadow-sm">
+          <p className="font-masthead text-xs tracking-[0.28em] text-[#8B261D] uppercase">
+            ZUBRO PRESS
+          </p>
+          <h1 className="font-displayBn text-2xl sm:text-3xl text-[#191613] mt-2">
+            সম্পাদনা দপ্তর
           </h1>
-          <p className="text-sm text-slate-400 mt-1 mb-6">
-            গল্প, বইয়ের ব্যানার ও ওয়েবসাইট নিয়ন্ত্রণ করতে আপনার অ্যাডমিন পাসওয়ার্ড দিন।
+          <p className="font-serifBn text-sm text-[#575047] mt-1.5 mb-7 leading-relaxed">
+            বইয়ের সংকলন, প্রচ্ছদ ব্যানার ও প্রকাশনা নিয়ন্ত্রণ করতে পাসওয়ার্ড প্রদান করুন।
           </p>
 
           {errorMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs">
+            <div className="mb-4 p-3 bg-[#8B261D]/10 border border-[#8B261D]/30 text-[#8B261D] text-xs">
               {errorMsg}
             </div>
           )}
@@ -339,24 +339,24 @@ export default function AdminDashboardPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="অ্যাডমিন পাসওয়ার্ড লিখুন..."
-              className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/15 focus:border-amber-500 focus:outline-none text-white text-sm"
+              placeholder="অ্যাডমিন পাসওয়ার্ড..."
+              className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm"
             />
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm transition-all"
+              className="w-full py-2.5 bg-[#191613] hover:bg-[#8B261D] text-[#FAF7F0] text-sm font-medium transition-colors"
             >
-              {loading ? "যাচাই করা হচ্ছে..." : "লগইন করুন"}
+              {loading ? "যাচাই করা হচ্ছে..." : "প্রবেশ করুন"}
             </button>
           </form>
 
           <Link
             href="/"
-            className="mt-6 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-400"
+            className="mt-6 inline-flex items-center gap-1.5 text-xs text-[#575047] hover:text-[#191613]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>মূল ওয়েবসাইটে ফিরে যান</span>
+            <span>মূল গ্রন্থশালায় ফিরে যান</span>
           </Link>
         </div>
       </div>
@@ -367,34 +367,35 @@ export default function AdminDashboardPage() {
   const totalLikes = books.reduce((s, b) => s + (b.likes_count || 0), 0);
 
   return (
-    <div className="min-h-screen bg-[#070912] text-slate-100">
-      {/* Top Admin Header */}
-      <header className="sticky top-0 z-40 bg-[#070912]/90 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-[#F4EFE6] text-[#191613]">
+      {/* Editorial Studio Header */}
+      <header className="sticky top-0 z-40 bg-[#FAF7F0]/95 backdrop-blur-sm border-b border-[#D6CCBC]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-15 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-xs font-medium inline-flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 text-xs text-[#575047] hover:text-[#191613]"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>সাইট দেখুন</span>
+              <span>ওয়েবসাইট দেখুন</span>
             </Link>
-            <span className="font-bold text-sm sm:text-base text-amber-400">
-              ZUBRO Admin
+            <span className="h-4 w-[1px] bg-[#D6CCBC]" />
+            <span className="font-displayBn text-base sm:text-lg">
+              জুব্রো সম্পাদনা দপ্তর
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={openNewBookEditor}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#191613] hover:bg-[#8B261D] text-[#FAF7F0] text-xs sm:text-sm font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
-              <span>নতুন বই যোগ করুন</span>
+              <span>নতুন বই সংযোজন</span>
             </button>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300"
+              className="p-2 border border-[#D6CCBC] hover:border-[#8B261D] text-[#575047] hover:text-[#8B261D] transition-colors"
               title="লগআউট"
             >
               <LogOut className="w-4 h-4" />
@@ -404,145 +405,134 @@ export default function AdminDashboardPage() {
       </header>
 
       {toast && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-bold text-xs sm:text-sm shadow-2xl">
-          <CheckCircle2 className="w-4 h-4" />
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-2.5 bg-[#191613] text-[#FAF7F0] text-xs sm:text-sm shadow-lg">
+          <Check className="w-4 h-4 text-emerald-400" />
           <span>{toast}</span>
         </div>
       )}
 
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10">
-            <p className="text-xs text-slate-400">মোট বই</p>
-            <p className="text-2xl font-bold text-white mt-1">{books.length}</p>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+        {/* Clean Ledger Summary */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 border border-[#D6CCBC] bg-[#FAF7F0] divide-y sm:divide-y-0 sm:divide-x divide-[#D6CCBC]">
+          <div className="p-4 sm:p-5">
+            <p className="text-xs text-[#7D7367]">মোট গ্রন্থ</p>
+            <p className="font-displayBn text-2xl mt-1">{toBanglaNumber(books.length)}</p>
           </div>
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10">
-            <p className="text-xs text-slate-400">মোট পঠিত (Views)</p>
-            <p className="text-2xl font-bold text-amber-400 mt-1">{totalViews}</p>
+          <div className="p-4 sm:p-5">
+            <p className="text-xs text-[#7D7367]">মোট পাঠসংখ্যা</p>
+            <p className="font-displayBn text-2xl mt-1">{toBanglaNumber(totalViews)}</p>
           </div>
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10">
-            <p className="text-xs text-slate-400">মোট ভালোবাসা (Likes)</p>
-            <p className="text-2xl font-bold text-rose-400 mt-1">{totalLikes}</p>
+          <div className="p-4 sm:p-5">
+            <p className="text-xs text-[#7D7367]">পাঠকের পছন্দ</p>
+            <p className="font-displayBn text-2xl mt-1">{toBanglaNumber(totalLikes)}</p>
           </div>
-          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10">
-            <p className="text-xs text-slate-400">ফেসবুক অটো-সিঙ্ক</p>
-            <p className="text-sm font-bold text-emerald-400 mt-2">● সচল (Auto Active)</p>
+          <div className="p-4 sm:p-5">
+            <p className="text-xs text-[#7D7367]">ফেসবুক স্বয়ংক্রিয় সংযোগ</p>
+            <p className="text-sm font-medium text-[#2E5A36] mt-2">সচল রয়েছে</p>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button
-            onClick={() => setTab("books")}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold ${
-              tab === "books" ? "bg-amber-500 text-slate-950" : "bg-white/5 text-slate-300"
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>সব বই ({books.length})</span>
-          </button>
-          <button
-            onClick={() => setTab("editor")}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold ${
-              tab === "editor" ? "bg-amber-500 text-slate-950" : "bg-white/5 text-slate-300"
-            }`}
-          >
-            <Edit3 className="w-4 h-4" />
-            <span>{editingBook.id ? "বই এডিট করুন" : "বই লিখুন"}</span>
-          </button>
-          <button
-            onClick={() => setTab("settings")}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold ${
-              tab === "settings" ? "bg-amber-500 text-slate-950" : "bg-white/5 text-slate-300"
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            <span>সাইট সেটিংস</span>
-          </button>
-          <button
-            onClick={() => setTab("security")}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold ${
-              tab === "security" ? "bg-amber-500 text-slate-950" : "bg-white/5 text-slate-300"
-            }`}
-          >
-            <KeyRound className="w-4 h-4" />
-            <span>পাসওয়ার্ড পরিবর্তন</span>
-          </button>
+        {/* Underline Tabs */}
+        <div className="flex items-center gap-6 border-b border-[#D6CCBC] overflow-x-auto no-scrollbar">
+          {[
+            { id: "books", label: `গ্রন্থতালিকা (${toBanglaNumber(books.length)})` },
+            { id: "editor", label: editingBook.id ? "গ্রন্থ সম্পাদনা" : "নতুন গ্রন্থ রচনা" },
+            { id: "settings", label: "প্রকাশনা সেটিংস" },
+            { id: "security", label: "পাসওয়ার্ড পরিবর্তন" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id as typeof tab)}
+              className={`pb-3 text-sm whitespace-nowrap border-b-2 transition-colors ${
+                tab === item.id
+                  ? "border-[#8B261D] text-[#191613] font-semibold"
+                  : "border-transparent text-[#7D7367] hover:text-[#191613]"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
 
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm">
+          <div className="p-3.5 bg-[#8B261D]/10 border border-[#8B261D]/30 text-[#8B261D] text-xs sm:text-sm">
             {errorMsg}
           </div>
         )}
 
-        {/* TAB 1: BOOKS LIST */}
+        {/* TAB 1: BOOKS LEDGER */}
         {tab === "books" && (
-          <div className="space-y-3">
+          <div className="border border-[#D6CCBC] bg-[#FAF7F0] divide-y divide-[#D6CCBC]">
             {books.map((b) => (
               <div
                 key={b.id}
-                className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
               >
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-300">
-                      {b.category_label}
-                    </span>
-                    {b.is_featured && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300">
-                        ★ Featured Hero
-                      </span>
-                    )}
-                    {!b.is_published && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/30 text-slate-300">
-                        Hidden (লুকানো)
-                      </span>
-                    )}
+                <div className="flex items-start gap-4">
+                  <div className="w-12 shrink-0 hidden sm:block">
+                    <BookCoverArtwork book={b} size="sm" />
                   </div>
-                  <h3 className="font-serifBn font-bold text-lg text-white">
-                    {b.title}
-                  </h3>
-                  <p className="text-xs text-slate-400 line-clamp-1">
-                    {b.subtitle || b.excerpt}
-                  </p>
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[#7D7367]">
+                      <span className="text-[#8B261D] font-medium">{b.category_label}</span>
+                      <span>·</span>
+                      <span>{toBanglaNumber(b.reading_time_minutes)} মিনিট পাঠ</span>
+                      {b.is_featured && (
+                        <>
+                          <span>·</span>
+                          <span className="font-semibold text-[#191613]">প্রচ্ছদ আখ্যান</span>
+                        </>
+                      )}
+                      {!b.is_published && (
+                        <>
+                          <span>·</span>
+                          <span className="text-[#8B261D]">অপ্রকাশিত খসড়া</span>
+                        </>
+                      )}
+                    </div>
+                    <h3 className="font-displayBn text-lg sm:text-xl text-[#191613]">
+                      {b.title}
+                    </h3>
+                    <p className="font-serifBn text-xs text-[#575047] line-clamp-1">
+                      {b.subtitle || b.excerpt}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <button
                     onClick={() => handleQuickToggle(b, "is_featured")}
-                    title="হোমপেজের শুরুতে পিন করুন"
-                    className={`p-2 rounded-xl border text-xs ${
+                    title="হোমপেজের প্রধান বই হিসেবে নির্বাচন করুন"
+                    className={`p-2 border text-xs transition-colors ${
                       b.is_featured
-                        ? "bg-amber-500/20 border-amber-500/40 text-amber-300"
-                        : "bg-white/5 border-white/10 text-slate-400"
+                        ? "bg-[#8B261D] border-[#8B261D] text-white"
+                        : "border-[#D6CCBC] text-[#575047] hover:border-[#191613]"
                     }`}
                   >
                     <Star className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleQuickToggle(b, "is_published")}
-                    title={b.is_published ? "সাইট থেকে লুকান" : "পাবলিশ করুন"}
-                    className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-300"
+                    title={b.is_published ? "ওয়েবসাইট থেকে লুকান" : "প্রকাশ করুন"}
+                    className="p-2 border border-[#D6CCBC] text-[#575047] hover:border-[#191613]"
                   >
                     {b.is_published ? (
-                      <Eye className="w-4 h-4 text-emerald-400" />
+                      <Eye className="w-4 h-4 text-[#2E5A36]" />
                     ) : (
-                      <EyeOff className="w-4 h-4 text-slate-500" />
+                      <EyeOff className="w-4 h-4 text-[#8B261D]" />
                     )}
                   </button>
                   <button
                     onClick={() => openEditBook(b)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-[#D6CCBC] hover:border-[#191613] text-xs font-medium"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
-                    <span>এডিট</span>
+                    <span>সম্পাদনা</span>
                   </button>
                   <button
                     onClick={() => handleArchiveBook(b)}
-                    className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400"
-                    title="মুছে ফেলুন"
+                    className="p-2 border border-[#D6CCBC] hover:border-[#8B261D] text-[#8B261D]"
+                    title="তালিকা থেকে সরান"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -556,90 +546,40 @@ export default function AdminDashboardPage() {
         {tab === "editor" && (
           <form
             onSubmit={handleSaveBook}
-            className="p-5 sm:p-8 rounded-3xl bg-white/[0.03] border border-white/10 space-y-5"
+            className="p-5 sm:p-8 bg-[#FAF7F0] border border-[#D6CCBC] space-y-6"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1.5">
-                  বইয়ের শিরোনাম (বাংলায়) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editingBook.title || ""}
-                  onChange={(e) =>
-                    setEditingBook({ ...editingBook, title: e.target.value })
-                  }
-                  placeholder="যেমন: নিঝুম রাতের লগবুক"
-                  className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1.5">
-                  সাবটাইটেল / এক লাইনের আবহ
-                </label>
-                <input
-                  type="text"
-                  value={editingBook.subtitle || ""}
-                  onChange={(e) =>
-                    setEditingBook({ ...editingBook, subtitle: e.target.value })
-                  }
-                  placeholder="যেমন: সদরঘাটের পুরনো আর্কাইভ ও এক নিরুদ্দেশ বন্ধুর গল্প"
-                  className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1.5">
-                  ক্যাটাগরি
-                </label>
-                <select
-                  value={editingBook.category || "masterpiece"}
-                  onChange={(e) =>
-                    setEditingBook({ ...editingBook, category: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white text-sm"
-                >
-                  {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs text-slate-400 mb-1.5">
-                  কভার থিম স্টাইল (০–৫)
-                </label>
-                <select
-                  value={editingBook.cover_theme ?? 0}
-                  onChange={(e) =>
-                    setEditingBook({
-                      ...editingBook,
-                      cover_theme: Number(e.target.value),
-                    })
-                  }
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white text-sm"
-                >
-                  <option value={0}>গোল্ডেন অবসিডিয়ান (Classic Gold)</option>
-                  <option value={1}>ক্রিমসন হরর (Dark Crimson)</option>
-                  <option value={2}>রয়্যাল এমারেল্ড (Forest Emerald)</option>
-                  <option value={3}>মিডনাইট ইন্ডিগো (Midnight Slate)</option>
-                  <option value={4}>অ্যান্টিক ব্রোঞ্জ (Warm Bronze)</option>
-                  <option value={5}>ভেলভেট পার্পল (Velvet Purple)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs text-slate-400 mb-1.5">
-                  কাস্টম বুক কভার ব্যানার আপলোড (ঐচ্ছিক)
-                </label>
-                <label className="w-full px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer hover:bg-amber-500/25">
-                  <Upload className="w-4 h-4" />
-                  <span>{coverBase64 ? "নতুন ব্যানার যুক্ত হয়েছে ✓" : "ছবি বেছে নিন"}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Live Cover Preview Column */}
+              <div className="lg:col-span-3 flex flex-col items-center space-y-3">
+                <div className="w-40">
+                  <BookCoverArtwork
+                    book={{
+                      id: editingBook.id || "preview",
+                      slug: editingBook.slug || "preview",
+                      title: editingBook.title || "বইয়ের শিরোনাম",
+                      subtitle: editingBook.subtitle || "",
+                      category: editingBook.category || "masterpiece",
+                      category_label:
+                        CATEGORY_OPTIONS.find((c) => c.value === editingBook.category)
+                          ?.label || "মাস্টারপিস গল্প",
+                      excerpt: editingBook.excerpt || "",
+                      content: editingBook.content || "",
+                      cover_theme: editingBook.cover_theme ?? 0,
+                      cover_image_url: coverPreviewUrl,
+                      reading_time_minutes: 8,
+                      views_count: 0,
+                      likes_count: 0,
+                      is_featured: false,
+                      is_published: true,
+                      facebook_post_id: null,
+                      published_at: new Date().toISOString(),
+                    }}
+                    size="sm"
+                  />
+                </div>
+                <label className="w-full px-3 py-2 border border-[#191613] text-[#191613] hover:bg-[#191613] hover:text-[#FAF7F0] text-xs font-medium flex items-center justify-center gap-2 cursor-pointer transition-colors">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{coverBase64 ? "নতুন প্রচ্ছদ যুক্ত ✓" : "কাস্টম প্রচ্ছদ আপলোড"}</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -647,77 +587,167 @@ export default function AdminDashboardPage() {
                     className="hidden"
                   />
                 </label>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-slate-400 mb-1.5">
-                সংক্ষিপ্ত সারসংক্ষেপ (খালি রাখলে অটো তৈরি হবে)
-              </label>
-              <textarea
-                rows={2}
-                value={editingBook.excerpt || ""}
-                onChange={(e) =>
-                  setEditingBook({ ...editingBook, excerpt: e.target.value })
-                }
-                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-slate-400 mb-1.5">
-                পুরো গল্প (২., ৩., ৪. দিয়ে আলাদা লাইনে অধ্যায় ভাগ করলে বইয়ে অটো চ্যাপ্টার তৈরি হবে) *
-              </label>
-              <textarea
-                rows={14}
-                required
-                value={editingBook.content || ""}
-                onChange={(e) =>
-                  setEditingBook({ ...editingBook, content: e.target.value })
-                }
-                placeholder="এখানে পুরো গল্পটি লিখুন বা পেস্ট করুন..."
-                className="w-full px-4 py-3 rounded-2xl bg-black/40 border border-white/15 text-white text-sm font-serifBn leading-relaxed"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-              <div className="flex items-center gap-5 text-sm">
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editingBook.is_published ?? true}
-                    onChange={(e) =>
-                      setEditingBook({
-                        ...editingBook,
-                        is_published: e.target.checked,
-                      })
-                    }
-                  />
-                  <span>পাবলিশ অবস্থায় রাখুন</span>
-                </label>
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editingBook.is_featured ?? false}
-                    onChange={(e) =>
-                      setEditingBook({
-                        ...editingBook,
-                        is_featured: e.target.checked,
-                      })
-                    }
-                  />
-                  <span>হোমপেজের প্রধান বই (Featured)</span>
-                </label>
+                {coverPreviewUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCoverPreviewUrl(null);
+                      setCoverBase64(null);
+                      setEditingBook({ ...editingBook, cover_image_url: null });
+                    }}
+                    className="text-[11px] text-[#8B261D] underline"
+                  >
+                    ছবি সরিয়ে কাপড়ের মলাট ব্যবহার করুন
+                  </button>
+                )}
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm"
-              >
-                <Save className="w-4 h-4" />
-                <span>{loading ? "সেভ হচ্ছে..." : "বই সেভ করুন"}</span>
-              </button>
+              {/* Form Fields Column */}
+              <div className="lg:col-span-9 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-[#575047] mb-1.5">
+                      বইয়ের শিরোনাম (বাংলায়) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editingBook.title || ""}
+                      onChange={(e) =>
+                        setEditingBook({ ...editingBook, title: e.target.value })
+                      }
+                      placeholder="যেমন: এমভি রক্তগোলাপের লগবুক"
+                      className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[#575047] mb-1.5">
+                      উপশিরোনাম / এক লাইনের আবহ
+                    </label>
+                    <input
+                      type="text"
+                      value={editingBook.subtitle || ""}
+                      onChange={(e) =>
+                        setEditingBook({ ...editingBook, subtitle: e.target.value })
+                      }
+                      placeholder="যেমন: সদরঘাটের পুরনো আর্কাইভ ও এক নিরুদ্দেশ বন্ধুর গল্প"
+                      className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-[#575047] mb-1.5">বিভাগ</label>
+                    <select
+                      value={editingBook.category || "masterpiece"}
+                      onChange={(e) =>
+                        setEditingBook({ ...editingBook, category: e.target.value })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm"
+                    >
+                      {CATEGORY_OPTIONS.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-[#575047] mb-1.5">
+                      কাপড়ের মলাটের রঙ (ছবি না থাকলে ব্যবহৃত হবে)
+                    </label>
+                    <select
+                      value={editingBook.cover_theme ?? 0}
+                      onChange={(e) =>
+                        setEditingBook({
+                          ...editingBook,
+                          cover_theme: Number(e.target.value),
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm"
+                    >
+                      <option value={0}>হাতে তৈরি কাগজ ও সিঁদুরে লাল স্পাইন</option>
+                      <option value={1}>গাঢ় খয়েরি কাপড় (অতিপ্রাকৃত সংস্করণ)</option>
+                      <option value={2}>অরণ্য সবুজ কাপড় (চিরায়ত সংস্করণ)</option>
+                      <option value={3}>নীলচে কালো মলাট (রাতের ডায়েরি)</option>
+                      <option value={4}>পোড়ামাটি মলাট (জীবনমুখী সংস্করণ)</option>
+                      <option value={5}>কালো লেটারপ্রেস সংস্করণ</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-[#575047] mb-1.5">
+                    প্রারম্ভিক উদ্ধৃতি / সারসংক্ষেপ (খালি রাখলে গল্পের শুরু থেকে নেওয়া হবে)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editingBook.excerpt || ""}
+                    onChange={(e) =>
+                      setEditingBook({ ...editingBook, excerpt: e.target.value })
+                    }
+                    className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm font-serifBn"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-[#575047] mb-1.5">
+                    সম্পূর্ণ পাণ্ডুলিপি (আলাদা লাইনে ২., ৩., ৪. দিলে স্বয়ংক্রিয়ভাবে পরিচ্ছেদ ভাগ হবে) *
+                  </label>
+                  <textarea
+                    rows={14}
+                    required
+                    value={editingBook.content || ""}
+                    onChange={(e) =>
+                      setEditingBook({ ...editingBook, content: e.target.value })
+                    }
+                    placeholder="এখানে সম্পূর্ণ গল্পটি লিখুন বা পেস্ট করুন..."
+                    className="w-full px-4 py-3 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm font-serifBn leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                  <div className="flex items-center gap-6 text-sm">
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingBook.is_published ?? true}
+                        onChange={(e) =>
+                          setEditingBook({
+                            ...editingBook,
+                            is_published: e.target.checked,
+                          })
+                        }
+                      />
+                      <span>প্রকাশিত রাখুন</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingBook.is_featured ?? false}
+                        onChange={(e) =>
+                          setEditingBook({
+                            ...editingBook,
+                            is_featured: e.target.checked,
+                          })
+                        }
+                      />
+                      <span>প্রচ্ছদ আখ্যান (Featured)</span>
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex items-center gap-2 px-7 py-2.5 bg-[#191613] hover:bg-[#8B261D] text-[#FAF7F0] text-sm font-medium transition-colors"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{loading ? "সংরক্ষিত হচ্ছে..." : "সংরক্ষণ ও প্রকাশ করুন"}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </form>
         )}
@@ -726,59 +756,44 @@ export default function AdminDashboardPage() {
         {tab === "settings" && (
           <form
             onSubmit={handleSaveSettings}
-            className="p-5 sm:p-8 rounded-3xl bg-white/[0.03] border border-white/10 space-y-4 max-w-2xl"
+            className="p-5 sm:p-8 bg-[#FAF7F0] border border-[#D6CCBC] space-y-4 max-w-2xl"
           >
             <div>
-              <label className="block text-xs text-slate-400 mb-1">সাইটের নাম</label>
+              <label className="block text-xs text-[#575047] mb-1">প্রকাশনার নাম</label>
               <input
                 type="text"
                 value={settings.site_title}
                 onChange={(e) =>
                   setSettings({ ...settings, site_title: e.target.value })
                 }
-                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
+                className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">ট্যাগলাইন</label>
+              <label className="block text-xs text-[#575047] mb-1">মূল স্লোগান / ট্যাগলাইন</label>
               <input
                 type="text"
                 value={settings.site_tagline}
                 onChange={(e) =>
                   setSettings({ ...settings, site_tagline: e.target.value })
                 }
-                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
+                className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
-                হিরো ব্যাজ টেক্সট
-              </label>
-              <input
-                type="text"
-                value={settings.hero_badge}
-                onChange={(e) =>
-                  setSettings({ ...settings, hero_badge: e.target.value })
-                }
-                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">
-                ফেসবুক পেজ লিংক
-              </label>
+              <label className="block text-xs text-[#575047] mb-1">ফেসবুক পেজ লিংক</label>
               <input
                 type="url"
                 value={settings.facebook_page_url}
                 onChange={(e) =>
                   setSettings({ ...settings, facebook_page_url: e.target.value })
                 }
-                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
+                className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
-                টপ নোটিশ / অ্যানাউন্সমেন্ট বার (খালি রাখলে বন্ধ থাকবে)
+              <label className="block text-xs text-[#575047] mb-1">
+                বিশেষ ঘোষণা বার (খালি রাখলে বন্ধ থাকবে)
               </label>
               <input
                 type="text"
@@ -786,17 +801,17 @@ export default function AdminDashboardPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, announcement: e.target.value })
                 }
-                placeholder="যেমন: প্রতিদিন রাত ৮:৩০-এ নতুন ৮ পর্বের গল্প প্রকাশিত হয়!"
-                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
+                placeholder="যেমন: প্রতি রাতে নতুন পূর্ণাঙ্গ আখ্যান সংযোজিত হয়।"
+                className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] text-sm"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#191613] hover:bg-[#8B261D] text-[#FAF7F0] text-sm font-medium transition-colors"
             >
               <Save className="w-4 h-4" />
-              <span>সেটিংস সেভ করুন</span>
+              <span>সেটিংস সংরক্ষণ করুন</span>
             </button>
           </form>
         )}
@@ -805,23 +820,21 @@ export default function AdminDashboardPage() {
         {tab === "security" && (
           <form
             onSubmit={handleChangePassword}
-            className="p-5 sm:p-8 rounded-3xl bg-white/[0.03] border border-white/10 space-y-4 max-w-md"
+            className="p-5 sm:p-8 bg-[#FAF7F0] border border-[#D6CCBC] space-y-4 max-w-md"
           >
-            <h3 className="font-bold text-lg">নতুন অ্যাডমিন পাসওয়ার্ড সেট করুন</h3>
+            <h3 className="font-displayBn text-xl">নতুন পাসওয়ার্ড নির্ধারণ করুন</h3>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
-                নতুন পাসওয়ার্ড
-              </label>
+              <label className="block text-xs text-[#575047] mb-1">নতুন পাসওয়ার্ড</label>
               <input
                 type="password"
                 required
                 value={newPass}
                 onChange={(e) => setNewPass(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
+                className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
+              <label className="block text-xs text-[#575047] mb-1">
                 পুনরায় নতুন পাসওয়ার্ড দিন
               </label>
               <input
@@ -829,15 +842,15 @@ export default function AdminDashboardPage() {
                 required
                 value={confirmPass}
                 onChange={(e) => setConfirmPass(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/15 text-white text-sm"
+                className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] text-sm"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm"
+              className="px-6 py-2.5 bg-[#191613] hover:bg-[#8B261D] text-[#FAF7F0] text-sm font-medium transition-colors"
             >
-              পাসওয়ার্ড আপডেট করুন
+              পাসওয়ার্ড পরিবর্তন করুন
             </button>
           </form>
         )}

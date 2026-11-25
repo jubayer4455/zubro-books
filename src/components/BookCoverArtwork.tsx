@@ -3,54 +3,76 @@
 import React, { useState } from "react";
 import { ZubroBook } from "@/lib/supabase";
 
-const COVER_THEMES = [
+/**
+ * Six authentic Dhaka Boimela / Penguin Classics clothbound book cover editions
+ * (Zero neon gradients, zero emojis — pure tactile print design).
+ */
+const CLOTH_EDITIONS = [
   {
-    bg: "linear-gradient(150deg, #1a120b 0%, #0d0907 55%, #050404 100%)",
-    border: "rgba(212, 175, 55, 0.45)",
-    accent: "#eab308",
-    badgeBg: "rgba(234, 179, 8, 0.16)",
-    text: "#fefce8",
-    ornament: "✦",
+    // 0: Classic Cream Rag Paper & Vermilion Spine (ঐতিহ্য / সাহিত্য সংস্করণ)
+    coverBg: "#EFE8DA",
+    spineBg: "#7D231B",
+    frameBorder: "rgba(43, 34, 27, 0.28)",
+    innerRule: "rgba(125, 35, 27, 0.45)",
+    titleColor: "#1A1613",
+    subColor: "#544A3E",
+    rubricColor: "#7D231B",
+    colophonColor: "#4A4036",
   },
   {
-    bg: "linear-gradient(155deg, #2b0912 0%, #14050a 60%, #070204 100%)",
-    border: "rgba(244, 63, 94, 0.4)",
-    accent: "#fb7185",
-    badgeBg: "rgba(244, 63, 94, 0.16)",
-    text: "#fff1f2",
-    ornament: "❖",
+    // 1: Deep Oxblood Clothbound (রহস্য ও অতিপ্রাকৃত সংস্করণ)
+    coverBg: "#2B1312",
+    spineBg: "#170908",
+    frameBorder: "rgba(216, 195, 165, 0.32)",
+    innerRule: "rgba(201, 154, 107, 0.48)",
+    titleColor: "#F3ECE1",
+    subColor: "#C8B9A6",
+    rubricColor: "#D4A373",
+    colophonColor: "#B8A894",
   },
   {
-    bg: "linear-gradient(150deg, #09221c 0%, #04120f 60%, #020806 100%)",
-    border: "rgba(52, 211, 153, 0.4)",
-    accent: "#34d399",
-    badgeBg: "rgba(52, 211, 153, 0.14)",
-    text: "#ecfdf5",
-    ornament: "✧",
+    // 2: Botanical Forest Linen (চিরায়ত আখ্যান)
+    coverBg: "#1A2821",
+    spineBg: "#0F1814",
+    frameBorder: "rgba(218, 208, 188, 0.3)",
+    innerRule: "rgba(186, 168, 132, 0.42)",
+    titleColor: "#F1ECE1",
+    subColor: "#BFC7BE",
+    rubricColor: "#D2B48C",
+    colophonColor: "#AAB3A9",
   },
   {
-    bg: "linear-gradient(150deg, #0f172a 0%, #090d1a 60%, #03050a 100%)",
-    border: "rgba(129, 140, 248, 0.42)",
-    accent: "#a5b4fc",
-    badgeBg: "rgba(99, 102, 241, 0.18)",
-    text: "#eef2ff",
-    ornament: "◈",
+    // 3: Prussian Ink Cloth (রাতের ডায়েরি)
+    coverBg: "#1B2430",
+    spineBg: "#10161F",
+    frameBorder: "rgba(220, 214, 201, 0.28)",
+    innerRule: "rgba(184, 173, 152, 0.4)",
+    titleColor: "#F2EFE9",
+    subColor: "#BCC3CC",
+    rubricColor: "#D6C3A5",
+    colophonColor: "#A5AEBA",
   },
   {
-    bg: "linear-gradient(150deg, #291811 0%, #170d09 60%, #0a0504 100%)",
-    border: "rgba(251, 146, 60, 0.4)",
-    accent: "#fb923c",
-    badgeBg: "rgba(251, 146, 60, 0.15)",
-    text: "#fff7ed",
-    ornament: "❂",
+    // 4: Raw Terracotta & Earth Linen (জীবনমুখী সংকলন)
+    coverBg: "#5C2C20",
+    spineBg: "#381911",
+    frameBorder: "rgba(242, 232, 217, 0.32)",
+    innerRule: "rgba(230, 206, 176, 0.45)",
+    titleColor: "#FAF4EB",
+    subColor: "#DFCBB8",
+    rubricColor: "#EED7B5",
+    colophonColor: "#D4BEA9",
   },
   {
-    bg: "linear-gradient(150deg, #1f1135 0%, #10081c 60%, #06030a 100%)",
-    border: "rgba(192, 132, 252, 0.42)",
-    accent: "#c084fc",
-    badgeBg: "rgba(192, 132, 252, 0.16)",
-    text: "#faf5ff",
-    ornament: "✦",
+    // 5: Warm Charcoal Letterpress Monograph
+    coverBg: "#1E1C1A",
+    spineBg: "#11100E",
+    frameBorder: "rgba(214, 204, 188, 0.28)",
+    innerRule: "rgba(176, 82, 61, 0.55)",
+    titleColor: "#F0EAE0",
+    subColor: "#B8AFA2",
+    rubricColor: "#C96D53",
+    colophonColor: "#9E9589",
   },
 ];
 
@@ -63,111 +85,107 @@ export default function BookCoverArtwork({
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const isHorror = book.category === "horror";
-  const themeIdx = isHorror && book.cover_theme === 0 ? 1 : Math.abs(book.cover_theme || 0) % COVER_THEMES.length;
-  const theme = COVER_THEMES[themeIdx];
+  const themeIdx =
+    isHorror && book.cover_theme === 0
+      ? 1
+      : Math.abs(book.cover_theme || 0) % CLOTH_EDITIONS.length;
+  const ed = CLOTH_EDITIONS[themeIdx];
 
   const hasUploadedBanner = Boolean(book.cover_image_url) && !imgFailed;
+  const coverSrc = book.cover_image_url
+    ? `${book.cover_image_url}${book.cover_image_url.includes("?") ? "&" : "?"}ed=2`
+    : null;
 
   return (
-    <div className="book-card-3d w-full">
+    <div className="physical-book w-full pr-2">
       <div
-        className="book-cover-inner relative aspect-[2/3] w-full rounded-r-2xl rounded-l-[5px] overflow-hidden select-none"
-        style={{ background: theme.bg }}
+        className="physical-book-cover cloth-weave relative aspect-[2/3] w-full overflow-hidden select-none"
+        style={{ backgroundColor: ed.coverBg }}
       >
-        {/* Hardcover Spine Crease */}
-        <div className="book-spine-groove absolute inset-y-0 left-0 w-5 z-20 pointer-events-none" />
+        {/* Left Cloth Quarter-Binding Spine Strip */}
+        {!hasUploadedBanner && (
+          <div
+            className="absolute inset-y-0 left-0 w-3 sm:w-3.5 z-10"
+            style={{ backgroundColor: ed.spineBg }}
+          />
+        )}
+
+        {/* Realistic Bookbinder's Spine Hinge Groove */}
+        <div className="book-hinge-crease absolute inset-y-0 left-0 w-4 sm:w-5 z-20 pointer-events-none" />
 
         {hasUploadedBanner ? (
-          <>
+          /* Clean Physical Print Cover — No duplicate HTML badges/titles overlaid! */
+          <div className="relative w-full h-full">
             <img
-              src={book.cover_image_url!}
+              src={coverSrc!}
               alt={book.title}
               onError={() => setImgFailed(true)}
               className="w-full h-full object-cover block"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30 pointer-events-none" />
-            <div className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full text-[11px] font-semibold backdrop-blur-md bg-black/55 border border-white/15 text-amber-300">
-              {book.category_label}
-            </div>
-            <div className="absolute inset-x-4 bottom-4 z-10 pl-2">
-              <h3
-                className={`font-serifBn font-bold text-white leading-snug drop-shadow-lg ${
-                  size === "lg" ? "text-2xl sm:text-3xl" : "text-lg sm:text-xl"
-                }`}
-              >
-                {book.title}
-              </h3>
-              {book.subtitle && (
-                <p className="text-xs sm:text-sm text-slate-200/85 mt-1 line-clamp-1">
-                  {book.subtitle}
-                </p>
-              )}
-              <div className="mt-2.5 pt-2 border-t border-white/15 flex items-center justify-between text-[11px] tracking-widest text-amber-300/90 font-semibold">
-                <span>ZUBRO EDITION</span>
-                <span>বইটি খুলুন ➔</span>
-              </div>
-            </div>
-          </>
-        ) : (
-          /* Luxury Embossed Hardcover Literary Design Fallback */
-          <div className="relative z-10 w-full h-full p-4 sm:p-5 pl-6 sm:pl-7 flex flex-col justify-between">
+            {/* Subtle matte paper vignette for physical realism */}
             <div
-              className="w-full h-full rounded-xl p-4 sm:p-5 flex flex-col justify-between relative"
-              style={{ border: `1.5px solid ${theme.border}` }}
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.18), inset 0 0 28px rgba(0,0,0,0.16)",
+              }}
+            />
+          </div>
+        ) : (
+          /* Authentic Bengali Clothbound Print Edition Cover */
+          <div className="relative z-10 w-full h-full p-3.5 sm:p-5 pl-5 sm:pl-7 flex flex-col justify-between">
+            <div
+              className="w-full h-full p-3.5 sm:p-5 flex flex-col justify-between relative"
+              style={{ border: `1px solid ${ed.frameBorder}` }}
             >
-              <div className="flex items-center justify-between gap-2">
+              {/* Top Literary Rubric */}
+              <div className="text-center">
                 <span
-                  className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide"
-                  style={{
-                    background: theme.badgeBg,
-                    color: theme.accent,
-                    border: `1px solid ${theme.border}`,
-                  }}
+                  className="text-[10px] sm:text-[11px] tracking-[0.14em] font-medium block"
+                  style={{ color: ed.rubricColor }}
                 >
                   {book.category_label}
                 </span>
-                <span style={{ color: theme.accent }} className="text-base opacity-80">
-                  {theme.ornament}
-                </span>
+                <div
+                  className="w-8 h-[1px] mx-auto mt-2"
+                  style={{ backgroundColor: ed.innerRule }}
+                />
               </div>
 
-              <div className="my-auto py-3 text-center">
-                <div
-                  className="w-10 h-[2px] mx-auto mb-3 opacity-75"
-                  style={{ background: theme.accent }}
-                />
+              {/* Center Book Title Plate */}
+              <div className="my-auto py-2 text-center px-1">
                 <h3
-                  style={{ color: theme.text }}
-                  className={`font-serifBn font-bold leading-snug ${
+                  style={{ color: ed.titleColor }}
+                  className={`font-displayBn leading-[1.3] ${
                     size === "lg"
                       ? "text-2xl sm:text-3xl"
                       : size === "sm"
                       ? "text-base"
-                      : "text-lg sm:text-xl"
+                      : "text-lg sm:text-[21px]"
                   }`}
                 >
                   {book.title}
                 </h3>
-                {book.subtitle && (
-                  <p className="text-xs sm:text-sm text-slate-300/80 mt-2 line-clamp-2 font-sansBn">
+                {book.subtitle && size !== "sm" && (
+                  <p
+                    style={{ color: ed.subColor }}
+                    className="text-[11px] sm:text-xs mt-2.5 line-clamp-2 leading-relaxed font-serifBn"
+                  >
                     {book.subtitle}
                   </p>
                 )}
-                <div
-                  className="w-10 h-[2px] mx-auto mt-3 opacity-75"
-                  style={{ background: theme.accent }}
-                />
               </div>
 
+              {/* Bottom Publisher Colophon */}
               <div
-                className="pt-2.5 flex items-center justify-between text-[11px] tracking-widest uppercase font-semibold"
-                style={{
-                  borderTop: `1px solid ${theme.border}`,
-                  color: theme.accent,
-                }}
+                className="pt-2.5 text-center"
+                style={{ borderTop: `1px solid ${ed.frameBorder}` }}
               >
-                <span>ZUBRO</span>
-                <span className="text-[10px] opacity-85">খুলে পড়ুন</span>
+                <span
+                  style={{ color: ed.colophonColor }}
+                  className="font-serifBn text-[10px] sm:text-[11px] tracking-[0.22em]"
+                >
+                  জুব্রো সংস্করণ
+                </span>
               </div>
             </div>
           </div>

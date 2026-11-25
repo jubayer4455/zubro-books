@@ -47,7 +47,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
       }
       revalidatePath("/");
-      if (data?.slug) revalidatePath(`/book/${data.slug}`);
+      if (data?.slug) {
+        revalidatePath(`/book/${data.slug}`);
+        revalidatePath(`/api/cover/${data.slug}`);
+      }
       return NextResponse.json({ ok: true, book: data });
     }
 

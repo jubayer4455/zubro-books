@@ -1,28 +1,18 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  BookOpen,
-  Clock,
-  Eye,
-  Heart,
-  Search,
-  Sparkles,
-  Skull,
-  Flame,
-  ExternalLink,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, Moon, Search, Sun } from "lucide-react";
 import { ZubroBook, ZubroSettings } from "@/lib/supabase";
 import { formatBanglaDate, toBanglaNumber } from "@/lib/chapters";
 import BookCoverArtwork from "./BookCoverArtwork";
 
 const CATEGORIES = [
-  { id: "all", label: "সব বই", icon: BookOpen },
-  { id: "masterpiece", label: "মাস্টারপিস গল্প", icon: Sparkles },
-  { id: "horror", label: "হরর ও অতিপ্রাকৃত", icon: Skull },
-  { id: "love", label: "প্রেম ও সংসার", icon: Heart },
-  { id: "thriller", label: "রহস্য ও থ্রিলার", icon: Flame },
+  { id: "all", label: "সব গ্রন্থ" },
+  { id: "masterpiece", label: "মাস্টারপিস আখ্যান" },
+  { id: "horror", label: "অতিপ্রাকৃত ও হরর" },
+  { id: "love", label: "প্রেম ও সংসার" },
+  { id: "thriller", label: "রহস্য ও থ্রিলার" },
 ];
 
 export default function BookShelfClient({
@@ -34,6 +24,24 @@ export default function BookShelfClient({
 }) {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [surface, setSurface] = useState<"paper" | "night">("paper");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("zubro_surface");
+    if (saved === "night" || saved === "paper") {
+      setSurface(saved);
+      document.documentElement.dataset.surface = saved;
+    } else {
+      document.documentElement.dataset.surface = "paper";
+    }
+  }, []);
+
+  const toggleSurface = () => {
+    const next = surface === "paper" ? "night" : "paper";
+    setSurface(next);
+    localStorage.setItem("zubro_surface", next);
+    document.documentElement.dataset.surface = next;
+  };
 
   const featuredBook = useMemo(() => {
     return books.find((b) => b.is_featured) || books[0] || null;
@@ -60,212 +68,260 @@ export default function BookShelfClient({
   }, [books, activeCategory, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#070912] text-slate-100 flex flex-col">
-      {/* Optional Announcement Banner */}
+    <div className="min-h-screen paper-grain flex flex-col">
+      {/* Optional Editorial Notice Strip */}
       {settings.announcement && (
-        <div className="bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-amber-500/20 border-b border-amber-500/30 text-amber-200 text-xs sm:text-sm py-2.5 px-4 text-center font-medium">
-          ✦ {settings.announcement}
+        <div className="border-b border-[var(--rule-hairline)] bg-[var(--bg-subtle)] text-[var(--ink-primary)] text-xs sm:text-sm py-2 px-4 text-center font-serifBn">
+          {settings.announcement}
         </div>
       )}
 
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#070912]/85 border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-amber-500/20">
-              Z
+      {/* Literary Publication Masthead */}
+      <header className="bg-[var(--bg-canvas)]/95 sticky top-0 z-40 backdrop-blur-sm border-b border-[var(--rule-hairline)]">
+        {/* Folio Utility Strip */}
+        <div className="border-b border-[var(--rule-hairline)]">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-between text-[11px] sm:text-xs text-[var(--ink-muted)]">
+            <div className="flex items-center gap-2">
+              <span>গ্রন্থশালা সংকলন</span>
+              <span>·</span>
+              <span>মোট {toBanglaNumber(books.length)}টি বই</span>
             </div>
-            <div>
-              <span className="text-xl sm:text-2xl font-bold tracking-[0.22em] text-white group-hover:text-amber-400 transition-colors">
-                {settings.site_title}
-              </span>
-              <p className="text-[11px] sm:text-xs text-slate-400 -mt-0.5">
-                {settings.site_tagline}
-              </p>
+
+            <div className="flex items-center gap-4 sm:gap-6">
+              <button
+                onClick={toggleSurface}
+                className="inline-flex items-center gap-1.5 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors"
+                title="পটভূমির রঙ পরিবর্তন করুন"
+              >
+                {surface === "paper" ? (
+                  <>
+                    <Moon className="w-3.5 h-3.5" />
+                    <span>নিশিরাত</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="w-3.5 h-3.5" />
+                    <span>কাগজের রঙ</span>
+                  </>
+                )}
+              </button>
+
+              <a
+                href={settings.facebook_page_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[var(--ink-secondary)] hover:text-[var(--accent-ink)] transition-colors"
+              >
+                <span>ফেসবুক পাতা</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </a>
             </div>
+          </div>
+        </div>
+
+        {/* Classic Editorial Wordmark */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 sm:gap-4">
+          <Link href="/" className="group inline-flex items-baseline gap-3.5">
+            <span className="font-masthead text-2xl sm:text-3xl font-semibold tracking-[0.26em] text-[var(--ink-primary)] group-hover:text-[var(--accent-ink)] transition-colors">
+              {settings.site_title}
+            </span>
+            <span className="hidden sm:inline-block w-5 h-[1px] bg-[var(--rule-hairline)] align-middle" />
+            <span className="font-displayBn text-sm sm:text-base text-[var(--ink-secondary)]">
+              {settings.site_tagline}
+            </span>
           </Link>
 
-          <div className="flex items-center gap-2.5 sm:gap-4">
-            <a
-              href={settings.facebook_page_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-all"
-            >
-              <span>ফেসবুক পেজ</span>
-              <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+          <nav className="hidden md:flex items-center gap-6 text-xs tracking-wide text-[var(--ink-secondary)]">
+            <a href="#bookshelf" className="hover:text-[var(--ink-primary)] transition-colors">
+              গ্রন্থতালিকা
             </a>
-          </div>
+            {featuredBook && (
+              <Link
+                href={`/book/${featuredBook.slug}`}
+                className="hover:text-[var(--accent-ink)] transition-colors"
+              >
+                সর্বশেষ সংযোজন
+              </Link>
+            )}
+          </nav>
         </div>
       </header>
 
-      {/* Hero Featured Book Banner */}
-      <section className="relative overflow-hidden border-b border-white/10">
-        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-amber-500/10 blur-[120px] pointer-events-none" />
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-indigo-500/15 blur-[130px] pointer-events-none" />
+      {/* Lead Book Editorial Feature */}
+      {featuredBook ? (
+        <section className="bg-[var(--bg-sheet)] border-b border-[var(--rule-hairline)]">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
+              {/* Physical Book Pedestal */}
+              <div className="lg:col-span-5 flex justify-center">
+                <div className="w-full max-w-[320px] sm:max-w-[360px] bg-[var(--bg-subtle)]/55 border border-[var(--rule-hairline)] px-9 py-9 sm:px-12 sm:py-11 flex justify-center">
+                  <Link
+                    href={`/book/${featuredBook.slug}`}
+                    className="w-48 sm:w-60 block"
+                  >
+                    <BookCoverArtwork book={featuredBook} size="lg" />
+                  </Link>
+                </div>
+              </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20">
-          {featuredBook ? (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-              <div className="lg:col-span-7 order-2 lg:order-1 space-y-5 text-center lg:text-left">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm font-semibold">
-                  <Sparkles className="w-4 h-4" />
-                  <span>{settings.hero_badge} • নির্বাচিত বই</span>
+              {/* Editorial Story Introduction */}
+              <div className="lg:col-span-7 space-y-5">
+                <div className="flex items-center gap-3 text-xs tracking-[0.14em] text-[var(--accent-ink)] font-medium">
+                  <span>নির্বাচিত আখ্যান</span>
+                  <span className="w-6 h-[1px] bg-[var(--accent-ink)] opacity-60" />
+                  <span>{featuredBook.category_label}</span>
                 </div>
 
-                <h1 className="font-serifBn text-3xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight">
-                  {featuredBook.title}
+                <h1 className="font-displayBn text-3xl sm:text-5xl text-[var(--ink-primary)] leading-[1.22]">
+                  <Link
+                    href={`/book/${featuredBook.slug}`}
+                    className="hover:text-[var(--accent-ink)] transition-colors"
+                  >
+                    {featuredBook.title}
+                  </Link>
                 </h1>
 
                 {featuredBook.subtitle && (
-                  <p className="text-base sm:text-xl text-amber-300/90 font-medium">
+                  <p className="font-serifBn text-base sm:text-lg text-[var(--ink-secondary)] leading-relaxed">
                     {featuredBook.subtitle}
                   </p>
                 )}
 
-                <p className="text-sm sm:text-base text-slate-300/90 leading-relaxed max-w-2xl mx-auto lg:mx-0 line-clamp-3 font-serifBn">
+                <blockquote className="border-l-2 border-[var(--accent-ink)] pl-4 sm:pl-5 py-0.5 font-serifBn text-sm sm:text-[16px] text-[var(--ink-secondary)] leading-[1.95] line-clamp-3">
                   {featuredBook.excerpt || featuredBook.content.slice(0, 240) + "..."}
-                </p>
+                </blockquote>
 
-                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 text-xs sm:text-sm text-slate-400 pt-1">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-amber-400" />
-                    {toBanglaNumber(featuredBook.reading_time_minutes)} মিনিট পাঠ
+                <div className="pt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--ink-muted)] border-t border-[var(--rule-hairline)]">
+                  <span className="pt-3">
+                    পাঠসময় {toBanglaNumber(featuredBook.reading_time_minutes)} মিনিট
                   </span>
-                  <span>•</span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Eye className="w-4 h-4 text-amber-400" />
-                    {toBanglaNumber(featuredBook.views_count)} বার পঠিত
+                  <span className="pt-3">·</span>
+                  <span className="pt-3">
+                    প্রকাশকাল {formatBanglaDate(featuredBook.published_at)}
                   </span>
-                  <span>•</span>
-                  <span>{formatBanglaDate(featuredBook.published_at)}</span>
+                  {featuredBook.views_count > 0 && (
+                    <>
+                      <span className="pt-3">·</span>
+                      <span className="pt-3">
+                        পঠিত {toBanglaNumber(featuredBook.views_count)} বার
+                      </span>
+                    </>
+                  )}
                 </div>
 
-                <div className="pt-3 flex flex-wrap items-center justify-center lg:justify-start gap-3.5">
+                <div className="pt-2 flex flex-wrap items-center gap-4">
                   <Link
                     href={`/book/${featuredBook.slug}`}
-                    className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm sm:text-base shadow-xl shadow-amber-500/20 transition-all transform hover:-translate-y-0.5"
+                    className="inline-flex items-center gap-2.5 px-6 py-3 rounded-[2px] bg-[var(--ink-primary)] text-[var(--bg-canvas)] hover:bg-[var(--accent-ink)] text-sm font-medium transition-colors"
                   >
-                    <BookOpen className="w-5 h-5" />
                     <span>বইটি খুলে পড়ুন</span>
+                    <ArrowRight className="w-4 h-4" />
                   </Link>
+
                   <a
                     href="#bookshelf"
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 text-slate-200 font-medium text-sm sm:text-base transition-all"
+                    className="inline-flex items-center gap-1.5 px-4 py-3 text-sm text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] underline underline-offset-4 decoration-[var(--rule-hairline)] hover:decoration-[var(--ink-primary)] transition-colors"
                   >
-                    সব বই দেখুন ({toBanglaNumber(books.length)})
+                    সম্পূর্ণ সংগ্রহ ({toBanglaNumber(books.length)})
                   </a>
                 </div>
               </div>
-
-              <div className="lg:col-span-5 order-1 lg:order-2 flex justify-center">
-                <Link
-                  href={`/book/${featuredBook.slug}`}
-                  className="w-56 sm:w-72 lg:w-80 block"
-                >
-                  <BookCoverArtwork book={featuredBook} size="lg" />
-                </Link>
-              </div>
             </div>
-          ) : (
-            <div className="text-center max-w-2xl mx-auto py-12 space-y-4">
-              <span className="px-3.5 py-1 rounded-full bg-amber-500/15 text-amber-300 text-xs font-semibold">
-                {settings.hero_badge}
-              </span>
-              <h1 className="font-serifBn text-3xl sm:text-5xl font-bold text-white">
-                {settings.site_title} — {settings.site_tagline}
-              </h1>
-              <p className="text-slate-400 text-sm sm:text-base">
-                {settings.hero_description}
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      ) : (
+        <section className="bg-[var(--bg-sheet)] border-b border-[var(--rule-hairline)] py-16 px-4 text-center">
+          <div className="max-w-xl mx-auto space-y-3">
+            <p className="text-xs tracking-[0.18em] text-[var(--accent-ink)]">
+              {settings.hero_badge}
+            </p>
+            <h1 className="font-displayBn text-3xl sm:text-4xl text-[var(--ink-primary)]">
+              {settings.site_title} — {settings.site_tagline}
+            </h1>
+            <p className="font-serifBn text-sm sm:text-base text-[var(--ink-secondary)] leading-relaxed">
+              {settings.hero_description}
+            </p>
+          </div>
+        </section>
+      )}
 
-      {/* Main Bookshelf Section */}
+      {/* Main Archive & Bookshelf */}
       <main
         id="bookshelf"
-        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14"
+        className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16"
       >
-        {/* Filter & Search Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 sm:mb-10">
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+        {/* Editorial Category Index & Catalog Search */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 border-b border-[var(--rule-hairline)] pb-0 mb-10 sm:mb-14">
+          <div className="flex items-center gap-6 sm:gap-8 overflow-x-auto no-scrollbar">
             {CATEGORIES.map((cat) => {
-              const Icon = cat.icon;
               const active = activeCategory === cat.id;
               return (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                  className={`pb-3.5 text-sm whitespace-nowrap border-b-2 transition-colors ${
                     active
-                      ? "bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20"
-                      : "bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10"
+                      ? "border-[var(--accent-ink)] text-[var(--ink-primary)] font-semibold"
+                      : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink-primary)]"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{cat.label}</span>
+                  {cat.label}
                 </button>
               );
             })}
           </div>
 
-          <div className="relative w-full md:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <div className="relative w-full md:w-64 pb-2.5">
+            <Search className="w-3.5 h-3.5 text-[var(--ink-muted)] absolute left-0 top-2.5" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="বই বা গল্পের নাম খুঁজুন..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white/5 border border-white/10 focus:border-amber-500/60 focus:outline-none text-sm text-white placeholder:text-slate-500"
+              placeholder="শিরোনাম বা শব্দ দিয়ে খুঁজুন..."
+              className="w-full pl-6 pr-2 py-1.5 bg-transparent border-b border-[var(--rule-hairline)] focus:border-[var(--ink-primary)] focus:outline-none text-xs sm:text-sm text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)]"
             />
           </div>
         </div>
 
-        {/* Books Grid */}
+        {/* Bookshelf Grid */}
         {filteredBooks.length === 0 ? (
-          <div className="text-center py-20 rounded-3xl bg-white/[0.02] border border-white/10">
-            <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <p className="text-lg font-medium text-slate-300">
-              এই ক্যাটাগরিতে এখনো কোনো বই পাওয়া যায়নি।
+          <div className="py-20 text-center border border-[var(--rule-hairline)] bg-[var(--bg-sheet)] px-4">
+            <p className="font-displayBn text-xl text-[var(--ink-primary)]">
+              এই বিভাগে এখনো কোনো বই সংযোজিত হয়নি।
             </p>
-            <p className="text-sm text-slate-500 mt-1">
-              ফেসবুক পেজে নতুন মাস্টারপিস বা হরর গল্প পোস্ট হলেই এখানে অটোমেটিক বই আকারে যুক্ত হয়ে যাবে!
+            <p className="font-serifBn text-sm text-[var(--ink-muted)] mt-2">
+              ফেসবুক পাতায় নতুন দীর্ঘ গল্প প্রকাশিত হলেই স্বয়ংক্রিয়ভাবে এখানে গ্রন্থাকারে যুক্ত হবে।
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12 sm:gap-x-9 sm:gap-y-14">
             {filteredBooks.map((book) => (
               <Link
                 key={book.id}
                 href={`/book/${book.slug}`}
                 className="group flex flex-col"
               >
-                <BookCoverArtwork book={book} size="md" />
-                <div className="mt-3.5 space-y-1 px-1">
-                  <h2 className="font-serifBn font-bold text-base sm:text-lg text-slate-100 group-hover:text-amber-400 transition-colors line-clamp-1">
+                {/* Shelf Pedestal */}
+                <div className="pb-4 border-b border-[var(--rule-hairline)]">
+                  <BookCoverArtwork book={book} size="md" />
+                </div>
+
+                {/* Editorial Caption Below Shelf */}
+                <div className="pt-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--ink-muted)]">
+                    <span className="text-[var(--accent-ink)] font-medium">
+                      {book.category_label}
+                    </span>
+                    <span>{toBanglaNumber(book.reading_time_minutes)} মিনিট</span>
+                  </div>
+
+                  <h2 className="font-displayBn text-lg sm:text-[21px] leading-[1.3] text-[var(--ink-primary)] group-hover:text-[var(--accent-ink)] transition-colors line-clamp-2">
                     {book.title}
                   </h2>
-                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                    {book.excerpt || book.content.slice(0, 100) + "..."}
+
+                  <p className="font-serifBn text-xs sm:text-[13px] text-[var(--ink-secondary)] line-clamp-2 leading-[1.75]">
+                    {book.excerpt || book.content.slice(0, 110) + "..."}
                   </p>
-                  <div className="pt-1.5 flex items-center justify-between text-[11px] text-slate-500">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-amber-500/80" />
-                      {toBanglaNumber(book.reading_time_minutes)} মিনিট
-                    </span>
-                    <span className="inline-flex items-center gap-2.5">
-                      <span className="inline-flex items-center gap-1">
-                        <Eye className="w-3 h-3" />
-                        {toBanglaNumber(book.views_count)}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Heart className="w-3 h-3 text-rose-400/80" />
-                        {toBanglaNumber(book.likes_count)}
-                      </span>
-                    </span>
-                  </div>
                 </div>
               </Link>
             ))}
@@ -273,26 +329,31 @@ export default function BookShelfClient({
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/10 bg-[#05070e] py-8 px-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-slate-500">
-          <div className="flex items-center gap-2">
-            <span className="font-bold tracking-widest text-slate-300">
+      {/* Classic Literary Colophon Footer */}
+      <footer className="border-t border-[var(--rule-hairline)] bg-[var(--bg-sheet)] py-10 px-4">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--ink-muted)]">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-center sm:text-left">
+            <span className="font-masthead text-sm tracking-[0.24em] font-semibold text-[var(--ink-primary)]">
               {settings.site_title}
             </span>
-            <span>— {settings.site_tagline}</span>
+            <span className="hidden sm:inline">—</span>
+            <span className="font-serifBn">{settings.site_tagline}</span>
           </div>
-          <div className="flex items-center gap-5">
+
+          <div className="flex items-center gap-6">
             <a
               href={settings.facebook_page_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-amber-400 transition-colors"
+              className="hover:text-[var(--accent-ink)] transition-colors"
             >
-              ফেসবুক পেজ
+              ফেসবুক পাতা
             </a>
-            <Link href="/admin" className="hover:text-slate-300 transition-colors">
-              অ্যাডমিন প্যানেল
+            <Link
+              href="/admin"
+              className="hover:text-[var(--ink-primary)] transition-colors"
+            >
+              সম্পাদনা দপ্তর
             </Link>
           </div>
         </div>

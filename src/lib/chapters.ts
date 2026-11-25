@@ -1,11 +1,27 @@
 export interface StoryChapter {
   index: number;
   numberLabel: string;
+  ordinalTitle: string;
   title: string;
   paragraphs: string[];
 }
 
 const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+
+const BN_ORDINALS = [
+  "প্রথম পরিচ্ছেদ",
+  "দ্বিতীয় পরিচ্ছেদ",
+  "তৃতীয় পরিচ্ছেদ",
+  "চতুর্থ পরিচ্ছেদ",
+  "পঞ্চম পরিচ্ছেদ",
+  "ষষ্ঠ পরিচ্ছেদ",
+  "সপ্তম পরিচ্ছেদ",
+  "অষ্টম পরিচ্ছেদ",
+  "নবম পরিচ্ছেদ",
+  "দশম পরিচ্ছেদ",
+  "একাদশ পরিচ্ছেদ",
+  "দ্বাদশ পরিচ্ছেদ",
+];
 
 export function toBanglaNumber(num: number | string): string {
   return String(num).replace(/\d/g, (d) => BN_DIGITS[Number(d)] || d);
@@ -24,10 +40,6 @@ export function formatBanglaDate(iso: string): string {
   }
 }
 
-/**
- * Splits a multi-chapter Bengali story (with markers like ২., ৩., ৪. or ১., ২. on their own lines)
- * into structured book chapters for the interactive Book Reader!
- */
 export function parseStoryIntoChapters(rawContent: string): StoryChapter[] {
   const text = String(rawContent || "").replace(/\r\n/g, "\n").trim();
   if (!text) return [];
@@ -37,7 +49,7 @@ export function parseStoryIntoChapters(rawContent: string): StoryChapter[] {
   let currentMarker = "১";
   let currentLines: string[] = [];
 
-  const chapterRegex = /^\s*(?:অধ্যায়\s*)?([১২৩৪৫৬৭৮৯০0-9]{1,2})\s*[.।:-]?\s*$/;
+  const chapterRegex = /^\s*(?:অধ্যায়\s*|পরিচ্ছেদ\s*|পর্ব\s*)?([১২৩৪৫৬৭৮৯০0-9]{1,2})\s*[.।:-]?\s*$/;
 
   for (const line of lines) {
     const match = line.match(chapterRegex);
@@ -56,9 +68,9 @@ export function parseStoryIntoChapters(rawContent: string): StoryChapter[] {
     chapters.push({ marker: currentMarker, bodyLines: currentLines });
   }
 
-  // If no explicit chapter markers existed and story is long, keep as single seamless chapter or split gently
   return chapters.map((ch, idx) => {
     const numBn = toBanglaNumber(idx + 1);
+    const ordinal = BN_ORDINALS[idx] || `পরিচ্ছেদ ${numBn}`;
     const paragraphs = ch.bodyLines
       .join("\n")
       .split(/\n{2,}/)
@@ -67,8 +79,9 @@ export function parseStoryIntoChapters(rawContent: string): StoryChapter[] {
 
     return {
       index: idx,
-      numberLabel: `পর্ব ${numBn}`,
-      title: `অধ্যায় ${numBn}`,
+      numberLabel: numBn,
+      ordinalTitle: ordinal,
+      title: ordinal,
       paragraphs:
         paragraphs.length > 0
           ? paragraphs
