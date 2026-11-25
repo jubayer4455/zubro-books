@@ -5,7 +5,15 @@ import { getSupabaseClient } from "@/lib/supabase";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, password, payload, coverBase64, coverMime, oldPassword, newPassword } = body;
+    const {
+      action,
+      password,
+      payload,
+      coverBase64,
+      coverMime,
+      oldPassword,
+      newPassword,
+    } = body;
     const supabase = getSupabaseClient();
 
     if (action === "verify") {
@@ -22,18 +30,48 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "list_books") {
-      const { data, error } = await supabase.rpc("zubro_admin_list_books", {
+      const [{ data, error }, { data: notesData }, { data: settings }] =
+        await Promise.all([
+          supabase.rpc("zubro_admin_list_books", {
+            p_password: password || "",
+          }),
+          supabase.rpc("zubro_admin_list_notes", {
+            p_password: password || "",
+          }),
+          supabase
+            .from("zubro_settings")
+            .select("*")
+            .eq("id", 1)
+            .maybeSingle(),
+        ]);
+
+      if (error) {
+        return NextResponse.json(
+          { ok: false, error: error.message },
+          { status: 401 }
+        );
+      }
+      return NextResponse.json({
+        ok: true,
+        books: data || [],
+        notes: notesData || [],
+        settings,
+      });
+    }
+
+    if (action === "hide_note") {
+      const { data, error } = await supabase.rpc("zubro_admin_hide_note", {
         p_password: password || "",
+        p_note_id: payload?.id,
       });
       if (error) {
-        return NextResponse.json({ ok: false, error: error.message }, { status: 401 });
+        return NextResponse.json(
+          { ok: false, error: error.message },
+          { status: 400 }
+        );
       }
-      const { data: settings } = await supabase
-        .from("zubro_settings")
-        .select("*")
-        .eq("id", 1)
-        .maybeSingle();
-      return NextResponse.json({ ok: true, books: data || [], settings });
+      if (payload?.book_slug) revalidatePath(`/book/${payload.book_slug}`);
+      return NextResponse.json({ ok: true, hidden: data });
     }
 
     if (action === "upsert_book") {
@@ -44,7 +82,10 @@ export async function POST(req: NextRequest) {
         p_cover_mime: coverMime || "image/jpeg",
       });
       if (error) {
-        return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+        return NextResponse.json(
+          { ok: false, error: error.message },
+          { status: 400 }
+        );
       }
       revalidatePath("/");
       if (data?.slug) {
@@ -60,36 +101,54 @@ export async function POST(req: NextRequest) {
         p_book_id: payload?.id,
       });
       if (error) {
-        return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+        return NextResponse.json(
+          { ok: false, error: error.message },
+          { status: 400 }
+        );
       }
       revalidatePath("/");
       return NextResponse.json({ ok: true, archived: data });
     }
 
     if (action === "update_settings") {
-      const { data, error } = await supabase.rpc("zubro_admin_update_settings", {
-        p_password: password || "",
-        p_settings: payload,
-      });
+      const { data, error } = await supabase.rpc(
+        "zubro_admin_update_settings",
+        {
+          p_password: password || "",
+          p_settings: payload,
+        }
+      );
       if (error) {
-        return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+        return NextResponse.json(
+          { ok: false, error: error.message },
+          { status: 400 }
+        );
       }
       revalidatePath("/");
       return NextResponse.json({ ok: true, settings: data });
     }
 
     if (action === "change_password") {
-      const { data, error } = await supabase.rpc("zubro_admin_change_password", {
-        p_old_password: oldPassword || "",
-        p_new_password: newPassword || "",
-      });
+      const { data, error } = await supabase.rpc(
+        "zubro_admin_change_password",
+        {
+          p_old_password: oldPassword || "",
+          p_new_password: newPassword || "",
+        }
+      );
       if (error) {
-        return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+        return NextResponse.json(
+          { ok: false, error: error.message },
+          { status: 400 }
+        );
       }
       return NextResponse.json({ ok: true, changed: data });
     }
 
-    return NextResponse.json({ ok: false, error: "Invalid action" }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, error: "Invalid action" },
+      { status: 400 }
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Server error";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });

@@ -2,17 +2,39 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Moon, Search, Sun } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Bookmark,
+  Download,
+  Moon,
+  Search,
+  Sun,
+} from "lucide-react";
 import { ZubroBook, ZubroSettings } from "@/lib/supabase";
 import { formatBanglaDate, toBanglaNumber } from "@/lib/chapters";
 import BookCoverArtwork from "./BookCoverArtwork";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+interface SavedProgress {
+  chapterIndex: number;
+  totalChapters: number;
+  pct: number;
+  updatedAt: number;
+}
+
 const CATEGORIES = [
   { id: "all", label: "সব গ্রন্থ" },
+  { id: "series", label: "ধারাবাহিক উপন্যাস" },
   { id: "masterpiece", label: "মাস্টারপিস আখ্যান" },
   { id: "horror", label: "অতিপ্রাকৃত ও হরর" },
   { id: "love", label: "প্রেম ও সংসার" },
   { id: "thriller", label: "রহস্য ও থ্রিলার" },
+  { id: "saved", label: "সংরক্ষিত বই" },
 ];
 
 export default function BookShelfClient({
@@ -25,15 +47,39 @@ export default function BookShelfClient({
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [surface, setSurface] = useState<"paper" | "night">("paper");
+  const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const [progressMap, setProgressMap] = useState<Record<string, SavedProgress>>(
+    {}
+  );
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("zubro_surface");
-    if (saved === "night" || saved === "paper") {
-      setSurface(saved);
-      document.documentElement.dataset.surface = saved;
+    const savedSurface = localStorage.getItem("zubro_surface");
+    if (savedSurface === "night" || savedSurface === "paper") {
+      setSurface(savedSurface);
+      document.documentElement.dataset.surface = savedSurface;
     } else {
       document.documentElement.dataset.surface = "paper";
     }
+
+    try {
+      const bm = JSON.parse(localStorage.getItem("zubro_bookmarks") || "[]");
+      if (Array.isArray(bm)) setBookmarks(bm);
+    } catch {}
+
+    try {
+      const pr = JSON.parse(localStorage.getItem("zubro_progress") || "{}");
+      if (pr && typeof pr === "object") setProgressMap(pr);
+    } catch {}
+
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    return () =>
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
   }, []);
 
   const toggleSurface = () => {
@@ -43,17 +89,61 @@ export default function BookShelfClient({
     document.documentElement.dataset.surface = next;
   };
 
+  const toggleBookmark = (e: React.MouseEvent, slug: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBookmarks((prev) => {
+      const next = prev.includes(slug)
+        ? prev.filter((s) => s !== slug)
+        : [...prev, slug];
+      localStorage.setItem("zubro_bookmarks", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleInstallApp = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
+
   const featuredBook = useMemo(() => {
     return books.find((b) => b.is_featured) || books[0] || null;
   }, [books]);
 
+  // Most recently read unfinished book
+  const continueReadingItem = useMemo(() => {
+    let latestSlug = "";
+    let latestTime = 0;
+    for (const [slug, info] of Object.entries(progressMap)) {
+      if (info && info.pct > 0 && info.pct < 100 && info.updatedAt > latestTime) {
+        latestSlug = slug;
+        latestTime = info.updatedAt;
+      }
+    }
+    if (!latestSlug) return null;
+    const book = books.find((b) => b.slug === latestSlug);
+    if (!book) return null;
+    return { book, progress: progressMap[latestSlug] };
+  }, [books, progressMap]);
+
   const filteredBooks = useMemo(() => {
     return books.filter((b) => {
-      const catMatch =
-        activeCategory === "all" ||
-        b.category === activeCategory ||
-        (activeCategory === "masterpiece" &&
-          ["masterpiece", "love", "thriller", "mystery"].includes(b.category));
+      let catMatch = false;
+      if (activeCategory === "all") {
+        catMatch = true;
+      } else if (activeCategory === "saved") {
+        catMatch = bookmarks.includes(b.slug);
+      } else if (activeCategory === "series") {
+        catMatch = Boolean(b.is_series) || b.category === "series";
+      } else if (activeCategory === "masterpiece") {
+        catMatch = ["masterpiece", "love", "thriller", "mystery"].includes(
+          b.category
+        );
+      } else {
+        catMatch = b.category === activeCategory;
+      }
 
       if (!catMatch) return false;
       if (!searchQuery.trim()) return true;
@@ -65,11 +155,10 @@ export default function BookShelfClient({
         b.content.toLowerCase().includes(q)
       );
     });
-  }, [books, activeCategory, searchQuery]);
+  }, [books, activeCategory, searchQuery, bookmarks]);
 
   return (
     <div className="min-h-screen paper-grain flex flex-col">
-      {/* Optional Editorial Notice Strip */}
       {settings.announcement && (
         <div className="border-b border-[var(--rule-hairline)] bg-[var(--bg-subtle)] text-[var(--ink-primary)] text-xs sm:text-sm py-2 px-4 text-center font-serifBn">
           {settings.announcement}
@@ -78,7 +167,6 @@ export default function BookShelfClient({
 
       {/* Literary Publication Masthead */}
       <header className="bg-[var(--bg-canvas)]/95 sticky top-0 z-40 backdrop-blur-sm border-b border-[var(--rule-hairline)]">
-        {/* Folio Utility Strip */}
         <div className="border-b border-[var(--rule-hairline)]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-between text-[11px] sm:text-xs text-[var(--ink-muted)]">
             <div className="flex items-center gap-2">
@@ -87,7 +175,17 @@ export default function BookShelfClient({
               <span>মোট {toBanglaNumber(books.length)}টি বই</span>
             </div>
 
-            <div className="flex items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-3.5 sm:gap-6">
+              {installPrompt && (
+                <button
+                  onClick={handleInstallApp}
+                  className="inline-flex items-center gap-1 text-[var(--accent-ink)] font-medium hover:underline"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>অ্যাপ ইনস্টল</span>
+                </button>
+              )}
+
               <button
                 onClick={toggleSurface}
                 className="inline-flex items-center gap-1.5 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors"
@@ -119,7 +217,6 @@ export default function BookShelfClient({
           </div>
         </div>
 
-        {/* Classic Editorial Wordmark */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 sm:gap-4">
           <Link href="/" className="group inline-flex items-baseline gap-3.5">
             <span className="font-masthead text-2xl sm:text-3xl font-semibold tracking-[0.26em] text-[var(--ink-primary)] group-hover:text-[var(--accent-ink)] transition-colors">
@@ -132,9 +229,20 @@ export default function BookShelfClient({
           </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-xs tracking-wide text-[var(--ink-secondary)]">
-            <a href="#bookshelf" className="hover:text-[var(--ink-primary)] transition-colors">
+            <a
+              href="#bookshelf"
+              className="hover:text-[var(--ink-primary)] transition-colors"
+            >
               গ্রন্থতালিকা
             </a>
+            {bookmarks.length > 0 && (
+              <button
+                onClick={() => setActiveCategory("saved")}
+                className="hover:text-[var(--accent-ink)] transition-colors"
+              >
+                সংরক্ষিত ({toBanglaNumber(bookmarks.length)})
+              </button>
+            )}
             {featuredBook && (
               <Link
                 href={`/book/${featuredBook.slug}`}
@@ -147,12 +255,40 @@ export default function BookShelfClient({
         </div>
       </header>
 
+      {/* Continue Reading Editorial Strip (if reader has an unfinished book) */}
+      {continueReadingItem && (
+        <div className="bg-[var(--bg-subtle)]/70 border-b border-[var(--rule-hairline)]">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+            <div className="flex items-center gap-2.5">
+              <span className="text-[var(--accent-ink)] font-medium">
+                অসমাপ্ত পাঠ:
+              </span>
+              <span className="font-displayBn font-medium text-[var(--ink-primary)]">
+                {continueReadingItem.book.title}
+              </span>
+              <span className="text-[var(--ink-muted)] text-xs">
+                (পরিচ্ছেদ{" "}
+                {toBanglaNumber(continueReadingItem.progress.chapterIndex + 1)}/
+                {toBanglaNumber(continueReadingItem.progress.totalChapters)} ·{" "}
+                {toBanglaNumber(continueReadingItem.progress.pct)}% পঠিত)
+              </span>
+            </div>
+            <Link
+              href={`/book/${continueReadingItem.book.slug}`}
+              className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-ink)] hover:underline"
+            >
+              <span>যেখানে থেমেছিলেন সেখান থেকে পড়ুন</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Lead Book Editorial Feature */}
       {featuredBook ? (
         <section className="bg-[var(--bg-sheet)] border-b border-[var(--rule-hairline)]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
-              {/* Physical Book Pedestal */}
               <div className="lg:col-span-5 flex justify-center">
                 <div className="w-full max-w-[320px] sm:max-w-[360px] bg-[var(--bg-subtle)]/55 border border-[var(--rule-hairline)] px-9 py-9 sm:px-12 sm:py-11 flex justify-center">
                   <Link
@@ -164,7 +300,6 @@ export default function BookShelfClient({
                 </div>
               </div>
 
-              {/* Editorial Story Introduction */}
               <div className="lg:col-span-7 space-y-5">
                 <div className="flex items-center gap-3 text-xs tracking-[0.14em] text-[var(--accent-ink)] font-medium">
                   <span>নির্বাচিত আখ্যান</span>
@@ -188,12 +323,14 @@ export default function BookShelfClient({
                 )}
 
                 <blockquote className="border-l-2 border-[var(--accent-ink)] pl-4 sm:pl-5 py-0.5 font-serifBn text-sm sm:text-[16px] text-[var(--ink-secondary)] leading-[1.95] line-clamp-3">
-                  {featuredBook.excerpt || featuredBook.content.slice(0, 240) + "..."}
+                  {featuredBook.excerpt ||
+                    featuredBook.content.slice(0, 240) + "..."}
                 </blockquote>
 
                 <div className="pt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--ink-muted)] border-t border-[var(--rule-hairline)]">
                   <span className="pt-3">
-                    পাঠসময় {toBanglaNumber(featuredBook.reading_time_minutes)} মিনিট
+                    পাঠসময় {toBanglaNumber(featuredBook.reading_time_minutes)}{" "}
+                    মিনিট
                   </span>
                   <span className="pt-3">·</span>
                   <span className="pt-3">
@@ -218,32 +355,29 @@ export default function BookShelfClient({
                     <ArrowRight className="w-4 h-4" />
                   </Link>
 
-                  <a
-                    href="#bookshelf"
-                    className="inline-flex items-center gap-1.5 px-4 py-3 text-sm text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] underline underline-offset-4 decoration-[var(--rule-hairline)] hover:decoration-[var(--ink-primary)] transition-colors"
+                  <button
+                    onClick={(e) => toggleBookmark(e, featuredBook.slug)}
+                    className="inline-flex items-center gap-1.5 px-4 py-3 border border-[var(--rule-hairline)] hover:border-[var(--ink-primary)] rounded-[2px] text-xs sm:text-sm text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] transition-colors"
                   >
-                    সম্পূর্ণ সংগ্রহ ({toBanglaNumber(books.length)})
-                  </a>
+                    <Bookmark
+                      className={`w-3.5 h-3.5 ${
+                        bookmarks.includes(featuredBook.slug)
+                          ? "fill-current text-[var(--accent-ink)]"
+                          : ""
+                      }`}
+                    />
+                    <span>
+                      {bookmarks.includes(featuredBook.slug)
+                        ? "সংরক্ষিত আছে"
+                        : "তালিকায় রাখুন"}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </section>
-      ) : (
-        <section className="bg-[var(--bg-sheet)] border-b border-[var(--rule-hairline)] py-16 px-4 text-center">
-          <div className="max-w-xl mx-auto space-y-3">
-            <p className="text-xs tracking-[0.18em] text-[var(--accent-ink)]">
-              {settings.hero_badge}
-            </p>
-            <h1 className="font-displayBn text-3xl sm:text-4xl text-[var(--ink-primary)]">
-              {settings.site_title} — {settings.site_tagline}
-            </h1>
-            <p className="font-serifBn text-sm sm:text-base text-[var(--ink-secondary)] leading-relaxed">
-              {settings.hero_description}
-            </p>
-          </div>
-        </section>
-      )}
+      ) : null}
 
       {/* Main Archive & Bookshelf */}
       <main
@@ -252,9 +386,13 @@ export default function BookShelfClient({
       >
         {/* Editorial Category Index & Catalog Search */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 border-b border-[var(--rule-hairline)] pb-0 mb-10 sm:mb-14">
-          <div className="flex items-center gap-6 sm:gap-8 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-5 sm:gap-7 overflow-x-auto no-scrollbar">
             {CATEGORIES.map((cat) => {
               const active = activeCategory === cat.id;
+              const label =
+                cat.id === "saved" && bookmarks.length > 0
+                  ? `${cat.label} (${toBanglaNumber(bookmarks.length)})`
+                  : cat.label;
               return (
                 <button
                   key={cat.id}
@@ -265,7 +403,7 @@ export default function BookShelfClient({
                       : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink-primary)]"
                   }`}
                 >
-                  {cat.label}
+                  {label}
                 </button>
               );
             })}
@@ -287,44 +425,80 @@ export default function BookShelfClient({
         {filteredBooks.length === 0 ? (
           <div className="py-20 text-center border border-[var(--rule-hairline)] bg-[var(--bg-sheet)] px-4">
             <p className="font-displayBn text-xl text-[var(--ink-primary)]">
-              এই বিভাগে এখনো কোনো বই সংযোজিত হয়নি।
+              {activeCategory === "saved"
+                ? "আপনার সংরক্ষিত তালিকায় এখনো কোনো বই নেই।"
+                : activeCategory === "series"
+                ? "পরবর্তী শুক্রবার রাত ৮:৩০-এ নতুন ৪-পর্বের ধারাবাহিক উপন্যাস শুরু হবে।"
+                : "এই বিভাগে এখনো কোনো বই সংযোজিত হয়নি।"}
             </p>
             <p className="font-serifBn text-sm text-[var(--ink-muted)] mt-2">
-              ফেসবুক পাতায় নতুন দীর্ঘ গল্প প্রকাশিত হলেই স্বয়ংক্রিয়ভাবে এখানে গ্রন্থাকারে যুক্ত হবে।
+              {activeCategory === "saved"
+                ? "যেকোনো বইয়ের নিচে বা ভেতরে বুকমার্ক চিহ্নে ক্লিক করে প্রিয় বই সংরক্ষণ করে রাখতে পারেন।"
+                : "ফেসবুক পাতায় নতুন দীর্ঘ গল্প প্রকাশিত হলেই স্বয়ংক্রিয়ভাবে এখানে গ্রন্থাকারে যুক্ত হবে।"}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12 sm:gap-x-9 sm:gap-y-14">
-            {filteredBooks.map((book) => (
-              <Link
-                key={book.id}
-                href={`/book/${book.slug}`}
-                className="group flex flex-col"
-              >
-                {/* Shelf Pedestal */}
-                <div className="pb-4 border-b border-[var(--rule-hairline)]">
-                  <BookCoverArtwork book={book} size="md" />
-                </div>
+            {filteredBooks.map((book) => {
+              const saved = bookmarks.includes(book.slug);
+              const prog = progressMap[book.slug];
 
-                {/* Editorial Caption Below Shelf */}
-                <div className="pt-3.5 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--ink-muted)]">
-                    <span className="text-[var(--accent-ink)] font-medium">
-                      {book.category_label}
-                    </span>
-                    <span>{toBanglaNumber(book.reading_time_minutes)} মিনিট</span>
+              return (
+                <Link
+                  key={book.id}
+                  href={`/book/${book.slug}`}
+                  className="group flex flex-col relative"
+                >
+                  <div className="pb-4 border-b border-[var(--rule-hairline)] relative">
+                    <BookCoverArtwork book={book} size="md" />
+
+                    {/* Discreet Bookmark Toggle */}
+                    <button
+                      onClick={(e) => toggleBookmark(e, book.slug)}
+                      title={saved ? "সংরক্ষণ সরান" : "পরে পড়ার জন্য সংরক্ষণ করুন"}
+                      className={`absolute top-2.5 right-4 z-30 p-1.5 bg-[var(--bg-sheet)]/90 border border-[var(--rule-hairline)] transition-opacity ${
+                        saved
+                          ? "opacity-100 text-[var(--accent-ink)]"
+                          : "opacity-0 group-hover:opacity-100 text-[var(--ink-secondary)]"
+                      }`}
+                    >
+                      <Bookmark
+                        className={`w-3.5 h-3.5 ${saved ? "fill-current" : ""}`}
+                      />
+                    </button>
+
+                    {/* Reading Progress Hairline if started */}
+                    {prog && prog.pct > 0 && (
+                      <div className="mt-3 h-[2px] w-full bg-[var(--rule-hairline)]">
+                        <div
+                          className="h-full bg-[var(--accent-ink)]"
+                          style={{ width: `${Math.min(100, prog.pct)}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <h2 className="font-displayBn text-lg sm:text-[21px] leading-[1.3] text-[var(--ink-primary)] group-hover:text-[var(--accent-ink)] transition-colors line-clamp-2">
-                    {book.title}
-                  </h2>
+                  <div className="pt-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--ink-muted)]">
+                      <span className="text-[var(--accent-ink)] font-medium truncate">
+                        {book.category_label}
+                      </span>
+                      <span className="shrink-0">
+                        {toBanglaNumber(book.reading_time_minutes)} মিনিট
+                      </span>
+                    </div>
 
-                  <p className="font-serifBn text-xs sm:text-[13px] text-[var(--ink-secondary)] line-clamp-2 leading-[1.75]">
-                    {book.excerpt || book.content.slice(0, 110) + "..."}
-                  </p>
-                </div>
-              </Link>
-            ))}
+                    <h2 className="font-displayBn text-lg sm:text-[21px] leading-[1.3] text-[var(--ink-primary)] group-hover:text-[var(--accent-ink)] transition-colors line-clamp-2">
+                      {book.title}
+                    </h2>
+
+                    <p className="font-serifBn text-xs sm:text-[13px] text-[var(--ink-secondary)] line-clamp-2 leading-[1.75]">
+                      {book.excerpt || book.content.slice(0, 110) + "..."}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </main>

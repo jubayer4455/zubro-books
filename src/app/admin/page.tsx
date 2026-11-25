@@ -15,12 +15,22 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { DEFAULT_SETTINGS, ZubroBook, ZubroSettings } from "@/lib/supabase";
-import { estimateReadingTimeMinutes, toBanglaNumber } from "@/lib/chapters";
+import {
+  DEFAULT_SETTINGS,
+  ZubroBook,
+  ZubroReaderNote,
+  ZubroSettings,
+} from "@/lib/supabase";
+import {
+  estimateReadingTimeMinutes,
+  formatBanglaDate,
+  toBanglaNumber,
+} from "@/lib/chapters";
 import BookCoverArtwork from "@/components/BookCoverArtwork";
 
 const CATEGORY_OPTIONS = [
   { value: "masterpiece", label: "মাস্টারপিস গল্প" },
+  { value: "series", label: "ধারাবাহিক উপন্যাস" },
   { value: "horror", label: "হরর ও অতিপ্রাকৃত" },
   { value: "love", label: "প্রেম ও সংসার" },
   { value: "thriller", label: "রহস্য ও থ্রিলার" },
@@ -33,8 +43,11 @@ export default function AdminDashboardPage() {
   const [toast, setToast] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const [tab, setTab] = useState<"books" | "editor" | "settings" | "security">("books");
+  const [tab, setTab] = useState<
+    "books" | "editor" | "notes" | "settings" | "security"
+  >("books");
   const [books, setBooks] = useState<ZubroBook[]>([]);
+  const [notes, setNotes] = useState<ZubroReaderNote[]>([]);
   const [settings, setSettings] = useState<ZubroSettings>(DEFAULT_SETTINGS);
 
   const [editingBook, setEditingBook] = useState<Partial<ZubroBook>>({
@@ -76,7 +89,9 @@ export default function AdminDashboardPage() {
         setAuthenticated(false);
       } else {
         setBooks(data.books || []);
-        if (data.settings) setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
+        setNotes(data.notes || []);
+        if (data.settings)
+          setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
         setAuthenticated(true);
         sessionStorage.setItem("zubro_admin_pw", pw);
       }
@@ -236,7 +251,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleArchiveBook = async (book: ZubroBook) => {
-    if (!confirm(`আপনি কি নিশ্চিতভাবে "${book.title}" বইটি তালিকা থেকে সরাতে চান?`))
+    if (
+      !confirm(`আপনি কি নিশ্চিতভাবে "${book.title}" বইটি তালিকা থেকে সরাতে চান?`)
+    )
       return;
     setLoading(true);
     try {
@@ -251,6 +268,25 @@ export default function AdminDashboardPage() {
       });
       await fetchDashboard(password);
       showNotice("বইটি আর্কাইভে সরানো হয়েছে।");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleHideNote = async (note: ZubroReaderNote) => {
+    setLoading(true);
+    try {
+      await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "hide_note",
+          password,
+          payload: { id: note.id, book_slug: note.book_slug },
+        }),
+      });
+      setNotes((prev) => prev.filter((n) => n.id !== note.id));
+      showNotice("পাঠকের মন্তব্যটি সরিয়ে দেওয়া হয়েছে।");
     } finally {
       setLoading(false);
     }
@@ -324,7 +360,7 @@ export default function AdminDashboardPage() {
             সম্পাদনা দপ্তর
           </h1>
           <p className="font-serifBn text-sm text-[#575047] mt-1.5 mb-7 leading-relaxed">
-            বইয়ের সংকলন, প্রচ্ছদ ব্যানার ও প্রকাশনা নিয়ন্ত্রণ করতে পাসওয়ার্ড প্রদান করুন।
+            বইয়ের সংকলন, প্রচ্ছদ ব্যানার, পাঠকের মন্তব্য ও প্রকাশনা নিয়ন্ত্রণ করতে পাসওয়ার্ড দিন।
           </p>
 
           {errorMsg && (
@@ -368,7 +404,6 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#F4EFE6] text-[#191613]">
-      {/* Editorial Studio Header */}
       <header className="sticky top-0 z-40 bg-[#FAF7F0]/95 backdrop-blur-sm border-b border-[#D6CCBC]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-15 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
@@ -412,31 +447,47 @@ export default function AdminDashboardPage() {
       )}
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-        {/* Clean Ledger Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 border border-[#D6CCBC] bg-[#FAF7F0] divide-y sm:divide-y-0 sm:divide-x divide-[#D6CCBC]">
           <div className="p-4 sm:p-5">
             <p className="text-xs text-[#7D7367]">মোট গ্রন্থ</p>
-            <p className="font-displayBn text-2xl mt-1">{toBanglaNumber(books.length)}</p>
+            <p className="font-displayBn text-2xl mt-1">
+              {toBanglaNumber(books.length)}
+            </p>
           </div>
           <div className="p-4 sm:p-5">
             <p className="text-xs text-[#7D7367]">মোট পাঠসংখ্যা</p>
-            <p className="font-displayBn text-2xl mt-1">{toBanglaNumber(totalViews)}</p>
+            <p className="font-displayBn text-2xl mt-1">
+              {toBanglaNumber(totalViews)}
+            </p>
           </div>
           <div className="p-4 sm:p-5">
             <p className="text-xs text-[#7D7367]">পাঠকের পছন্দ</p>
-            <p className="font-displayBn text-2xl mt-1">{toBanglaNumber(totalLikes)}</p>
+            <p className="font-displayBn text-2xl mt-1">
+              {toBanglaNumber(totalLikes)}
+            </p>
           </div>
           <div className="p-4 sm:p-5">
-            <p className="text-xs text-[#7D7367]">ফেসবুক স্বয়ংক্রিয় সংযোগ</p>
-            <p className="text-sm font-medium text-[#2E5A36] mt-2">সচল রয়েছে</p>
+            <p className="text-xs text-[#7D7367]">পাঠকের মন্তব্য</p>
+            <p className="font-displayBn text-2xl mt-1">
+              {toBanglaNumber(notes.length)}
+            </p>
           </div>
         </div>
 
-        {/* Underline Tabs */}
         <div className="flex items-center gap-6 border-b border-[#D6CCBC] overflow-x-auto no-scrollbar">
           {[
-            { id: "books", label: `গ্রন্থতালিকা (${toBanglaNumber(books.length)})` },
-            { id: "editor", label: editingBook.id ? "গ্রন্থ সম্পাদনা" : "নতুন গ্রন্থ রচনা" },
+            {
+              id: "books",
+              label: `গ্রন্থতালিকা (${toBanglaNumber(books.length)})`,
+            },
+            {
+              id: "editor",
+              label: editingBook.id ? "গ্রন্থ সম্পাদনা" : "নতুন গ্রন্থ রচনা",
+            },
+            {
+              id: "notes",
+              label: `পাঠকের মন্তব্য (${toBanglaNumber(notes.length)})`,
+            },
             { id: "settings", label: "প্রকাশনা সেটিংস" },
             { id: "security", label: "পাসওয়ার্ড পরিবর্তন" },
           ].map((item) => (
@@ -474,13 +525,19 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2 text-xs text-[#7D7367]">
-                      <span className="text-[#8B261D] font-medium">{b.category_label}</span>
+                      <span className="text-[#8B261D] font-medium">
+                        {b.category_label}
+                      </span>
                       <span>·</span>
-                      <span>{toBanglaNumber(b.reading_time_minutes)} মিনিট পাঠ</span>
+                      <span>
+                        {toBanglaNumber(b.reading_time_minutes)} মিনিট পাঠ
+                      </span>
                       {b.is_featured && (
                         <>
                           <span>·</span>
-                          <span className="font-semibold text-[#191613]">প্রচ্ছদ আখ্যান</span>
+                          <span className="font-semibold text-[#191613]">
+                            প্রচ্ছদ আখ্যান
+                          </span>
                         </>
                       )}
                       {!b.is_published && (
@@ -513,7 +570,9 @@ export default function AdminDashboardPage() {
                   </button>
                   <button
                     onClick={() => handleQuickToggle(b, "is_published")}
-                    title={b.is_published ? "ওয়েবসাইট থেকে লুকান" : "প্রকাশ করুন"}
+                    title={
+                      b.is_published ? "ওয়েবসাইট থেকে লুকান" : "প্রকাশ করুন"
+                    }
                     className="p-2 border border-[#D6CCBC] text-[#575047] hover:border-[#191613]"
                   >
                     {b.is_published ? (
@@ -549,7 +608,6 @@ export default function AdminDashboardPage() {
             className="p-5 sm:p-8 bg-[#FAF7F0] border border-[#D6CCBC] space-y-6"
           >
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Live Cover Preview Column */}
               <div className="lg:col-span-3 flex flex-col items-center space-y-3">
                 <div className="w-40">
                   <BookCoverArtwork
@@ -560,8 +618,9 @@ export default function AdminDashboardPage() {
                       subtitle: editingBook.subtitle || "",
                       category: editingBook.category || "masterpiece",
                       category_label:
-                        CATEGORY_OPTIONS.find((c) => c.value === editingBook.category)
-                          ?.label || "মাস্টারপিস গল্প",
+                        CATEGORY_OPTIONS.find(
+                          (c) => c.value === editingBook.category
+                        )?.label || "মাস্টারপিস গল্প",
                       excerpt: editingBook.excerpt || "",
                       content: editingBook.content || "",
                       cover_theme: editingBook.cover_theme ?? 0,
@@ -579,7 +638,9 @@ export default function AdminDashboardPage() {
                 </div>
                 <label className="w-full px-3 py-2 border border-[#191613] text-[#191613] hover:bg-[#191613] hover:text-[#FAF7F0] text-xs font-medium flex items-center justify-center gap-2 cursor-pointer transition-colors">
                   <Upload className="w-3.5 h-3.5" />
-                  <span>{coverBase64 ? "নতুন প্রচ্ছদ যুক্ত ✓" : "কাস্টম প্রচ্ছদ আপলোড"}</span>
+                  <span>
+                    {coverBase64 ? "নতুন প্রচ্ছদ যুক্ত ✓" : "কাস্টম প্রচ্ছদ আপলোড"}
+                  </span>
                   <input
                     type="file"
                     accept="image/*"
@@ -602,7 +663,6 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
-              {/* Form Fields Column */}
               <div className="lg:col-span-9 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -614,7 +674,10 @@ export default function AdminDashboardPage() {
                       required
                       value={editingBook.title || ""}
                       onChange={(e) =>
-                        setEditingBook({ ...editingBook, title: e.target.value })
+                        setEditingBook({
+                          ...editingBook,
+                          title: e.target.value,
+                        })
                       }
                       placeholder="যেমন: এমভি রক্তগোলাপের লগবুক"
                       className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm"
@@ -628,7 +691,10 @@ export default function AdminDashboardPage() {
                       type="text"
                       value={editingBook.subtitle || ""}
                       onChange={(e) =>
-                        setEditingBook({ ...editingBook, subtitle: e.target.value })
+                        setEditingBook({
+                          ...editingBook,
+                          subtitle: e.target.value,
+                        })
                       }
                       placeholder="যেমন: সদরঘাটের পুরনো আর্কাইভ ও এক নিরুদ্দেশ বন্ধুর গল্প"
                       className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm"
@@ -638,11 +704,16 @@ export default function AdminDashboardPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-[#575047] mb-1.5">বিভাগ</label>
+                    <label className="block text-xs text-[#575047] mb-1.5">
+                      বিভাগ
+                    </label>
                     <select
                       value={editingBook.category || "masterpiece"}
                       onChange={(e) =>
-                        setEditingBook({ ...editingBook, category: e.target.value })
+                        setEditingBook({
+                          ...editingBook,
+                          category: e.target.value,
+                        })
                       }
                       className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm"
                     >
@@ -668,8 +739,12 @@ export default function AdminDashboardPage() {
                       }
                       className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm"
                     >
-                      <option value={0}>হাতে তৈরি কাগজ ও সিঁদুরে লাল স্পাইন</option>
-                      <option value={1}>গাঢ় খয়েরি কাপড় (অতিপ্রাকৃত সংস্করণ)</option>
+                      <option value={0}>
+                        হাতে তৈরি কাগজ ও সিঁদুরে লাল স্পাইন
+                      </option>
+                      <option value={1}>
+                        গাঢ় খয়েরি কাপড় (অতিপ্রাকৃত সংস্করণ)
+                      </option>
                       <option value={2}>অরণ্য সবুজ কাপড় (চিরায়ত সংস্করণ)</option>
                       <option value={3}>নীলচে কালো মলাট (রাতের ডায়েরি)</option>
                       <option value={4}>পোড়ামাটি মলাট (জীবনমুখী সংস্করণ)</option>
@@ -686,7 +761,10 @@ export default function AdminDashboardPage() {
                     rows={2}
                     value={editingBook.excerpt || ""}
                     onChange={(e) =>
-                      setEditingBook({ ...editingBook, excerpt: e.target.value })
+                      setEditingBook({
+                        ...editingBook,
+                        excerpt: e.target.value,
+                      })
                     }
                     className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm font-serifBn"
                   />
@@ -701,7 +779,10 @@ export default function AdminDashboardPage() {
                     required
                     value={editingBook.content || ""}
                     onChange={(e) =>
-                      setEditingBook({ ...editingBook, content: e.target.value })
+                      setEditingBook({
+                        ...editingBook,
+                        content: e.target.value,
+                      })
                     }
                     placeholder="এখানে সম্পূর্ণ গল্পটি লিখুন বা পেস্ট করুন..."
                     className="w-full px-4 py-3 bg-white border border-[#CFC5B4] focus:border-[#191613] focus:outline-none text-sm font-serifBn leading-relaxed"
@@ -744,7 +825,9 @@ export default function AdminDashboardPage() {
                     className="inline-flex items-center gap-2 px-7 py-2.5 bg-[#191613] hover:bg-[#8B261D] text-[#FAF7F0] text-sm font-medium transition-colors"
                   >
                     <Save className="w-4 h-4" />
-                    <span>{loading ? "সংরক্ষিত হচ্ছে..." : "সংরক্ষণ ও প্রকাশ করুন"}</span>
+                    <span>
+                      {loading ? "সংরক্ষিত হচ্ছে..." : "সংরক্ষণ ও প্রকাশ করুন"}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -752,14 +835,59 @@ export default function AdminDashboardPage() {
           </form>
         )}
 
-        {/* TAB 3: SITE SETTINGS */}
+        {/* TAB 3: READER NOTES MODERATION */}
+        {tab === "notes" && (
+          <div className="border border-[#D6CCBC] bg-[#FAF7F0] divide-y divide-[#D6CCBC]">
+            {notes.length === 0 ? (
+              <div className="p-8 text-center text-sm text-[#7D7367] font-serifBn">
+                এখনো কোনো পাঠকের মন্তব্য জমা পড়েনি।
+              </div>
+            ) : (
+              notes.map((n) => (
+                <div
+                  key={n.id}
+                  className="p-4 sm:p-5 flex items-start justify-between gap-4"
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[#7D7367]">
+                      <span className="font-semibold text-[#191613]">
+                        {n.reader_name}
+                      </span>
+                      <span>·</span>
+                      <span className="text-[#8B261D]">
+                        {n.book_title || n.book_slug}
+                      </span>
+                      <span>·</span>
+                      <span>{formatBanglaDate(n.created_at)}</span>
+                    </div>
+                    <p className="font-serifBn text-sm text-[#4E473F] leading-relaxed">
+                      {n.note_text}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => handleHideNote(n)}
+                    title="মন্তব্যটি সরিয়ে ফেলুন"
+                    className="p-2 border border-[#D6CCBC] hover:border-[#8B261D] text-[#8B261D] shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: SITE SETTINGS */}
         {tab === "settings" && (
           <form
             onSubmit={handleSaveSettings}
             className="p-5 sm:p-8 bg-[#FAF7F0] border border-[#D6CCBC] space-y-4 max-w-2xl"
           >
             <div>
-              <label className="block text-xs text-[#575047] mb-1">প্রকাশনার নাম</label>
+              <label className="block text-xs text-[#575047] mb-1">
+                প্রকাশনার নাম
+              </label>
               <input
                 type="text"
                 value={settings.site_title}
@@ -770,7 +898,9 @@ export default function AdminDashboardPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-[#575047] mb-1">মূল স্লোগান / ট্যাগলাইন</label>
+              <label className="block text-xs text-[#575047] mb-1">
+                মূল স্লোগান / ট্যাগলাইন
+              </label>
               <input
                 type="text"
                 value={settings.site_tagline}
@@ -781,12 +911,17 @@ export default function AdminDashboardPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-[#575047] mb-1">ফেসবুক পেজ লিংক</label>
+              <label className="block text-xs text-[#575047] mb-1">
+                ফেসবুক পেজ লিংক
+              </label>
               <input
                 type="url"
                 value={settings.facebook_page_url}
                 onChange={(e) =>
-                  setSettings({ ...settings, facebook_page_url: e.target.value })
+                  setSettings({
+                    ...settings,
+                    facebook_page_url: e.target.value,
+                  })
                 }
                 className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] text-sm"
               />
@@ -801,7 +936,7 @@ export default function AdminDashboardPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, announcement: e.target.value })
                 }
-                placeholder="যেমন: প্রতি রাতে নতুন পূর্ণাঙ্গ আখ্যান সংযোজিত হয়।"
+                placeholder="যেমন: প্রতি শুক্রবার রাত ৮:৩০-এ নতুন ধারাবাহিক উপন্যাস প্রকাশিত হয়।"
                 className="w-full px-3.5 py-2.5 bg-white border border-[#CFC5B4] text-sm"
               />
             </div>
@@ -816,15 +951,19 @@ export default function AdminDashboardPage() {
           </form>
         )}
 
-        {/* TAB 4: SECURITY */}
+        {/* TAB 5: SECURITY */}
         {tab === "security" && (
           <form
             onSubmit={handleChangePassword}
             className="p-5 sm:p-8 bg-[#FAF7F0] border border-[#D6CCBC] space-y-4 max-w-md"
           >
-            <h3 className="font-displayBn text-xl">নতুন পাসওয়ার্ড নির্ধারণ করুন</h3>
+            <h3 className="font-displayBn text-xl">
+              নতুন পাসওয়ার্ড নির্ধারণ করুন
+            </h3>
             <div>
-              <label className="block text-xs text-[#575047] mb-1">নতুন পাসওয়ার্ড</label>
+              <label className="block text-xs text-[#575047] mb-1">
+                নতুন পাসওয়ার্ড
+              </label>
               <input
                 type="password"
                 required

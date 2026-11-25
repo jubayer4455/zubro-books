@@ -19,7 +19,7 @@ export interface ZubroBook {
   slug: string;
   title: string;
   subtitle: string;
-  category: "masterpiece" | "horror" | "love" | "thriller" | string;
+  category: "masterpiece" | "horror" | "love" | "thriller" | "series" | string;
   category_label: string;
   excerpt: string;
   content: string;
@@ -30,8 +30,21 @@ export interface ZubroBook {
   likes_count: number;
   is_featured: boolean;
   is_published: boolean;
+  is_series?: boolean;
+  series_slug?: string | null;
+  current_episode?: number;
+  total_episodes?: number;
   facebook_post_id: string | null;
   published_at: string;
+}
+
+export interface ZubroReaderNote {
+  id: string;
+  book_slug: string;
+  book_title?: string;
+  reader_name: string;
+  note_text: string;
+  created_at: string;
 }
 
 export interface ZubroSettings {
