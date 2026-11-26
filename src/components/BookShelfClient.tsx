@@ -40,11 +40,13 @@ const CATEGORIES = [
 export default function BookShelfClient({
   books,
   settings,
+  initialCategory = "all",
 }: {
   books: ZubroBook[];
   settings: ZubroSettings;
+  initialCategory?: string;
 }) {
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [searchQuery, setSearchQuery] = useState("");
   const [surface, setSurface] = useState<"paper" | "night">("paper");
   const [bookmarks, setBookmarks] = useState<string[]>([]);
@@ -112,7 +114,6 @@ export default function BookShelfClient({
     return books.find((b) => b.is_featured) || books[0] || null;
   }, [books]);
 
-  // Most recently read unfinished book
   const continueReadingItem = useMemo(() => {
     let latestSlug = "";
     let latestTime = 0;
@@ -165,7 +166,6 @@ export default function BookShelfClient({
         </div>
       )}
 
-      {/* Literary Publication Masthead */}
       <header className="bg-[var(--bg-canvas)]/95 sticky top-0 z-40 backdrop-blur-sm border-b border-[var(--rule-hairline)]">
         <div className="border-b border-[var(--rule-hairline)]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-9 flex items-center justify-between text-[11px] sm:text-xs text-[var(--ink-muted)]">
@@ -228,7 +228,10 @@ export default function BookShelfClient({
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6 text-xs tracking-wide text-[var(--ink-secondary)]">
+          <nav
+            aria-label="প্রধান নেভিগেশন"
+            className="hidden md:flex items-center gap-6 text-xs tracking-wide text-[var(--ink-secondary)]"
+          >
             <a
               href="#bookshelf"
               className="hover:text-[var(--ink-primary)] transition-colors"
@@ -255,7 +258,6 @@ export default function BookShelfClient({
         </div>
       </header>
 
-      {/* Continue Reading Editorial Strip (if reader has an unfinished book) */}
       {continueReadingItem && (
         <div className="bg-[var(--bg-subtle)]/70 border-b border-[var(--rule-hairline)]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
@@ -284,8 +286,7 @@ export default function BookShelfClient({
         </div>
       )}
 
-      {/* Lead Book Editorial Feature */}
-      {featuredBook ? (
+      {featuredBook && activeCategory === "all" ? (
         <section className="bg-[var(--bg-sheet)] border-b border-[var(--rule-hairline)]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
@@ -333,9 +334,12 @@ export default function BookShelfClient({
                     মিনিট
                   </span>
                   <span className="pt-3">·</span>
-                  <span className="pt-3">
+                  <time
+                    dateTime={featuredBook.published_at}
+                    className="pt-3"
+                  >
                     প্রকাশকাল {formatBanglaDate(featuredBook.published_at)}
-                  </span>
+                  </time>
                   {featuredBook.views_count > 0 && (
                     <>
                       <span className="pt-3">·</span>
@@ -379,12 +383,10 @@ export default function BookShelfClient({
         </section>
       ) : null}
 
-      {/* Main Archive & Bookshelf */}
       <main
         id="bookshelf"
         className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16"
       >
-        {/* Editorial Category Index & Catalog Search */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 border-b border-[var(--rule-hairline)] pb-0 mb-10 sm:mb-14">
           <div className="flex items-center gap-5 sm:gap-7 overflow-x-auto no-scrollbar">
             {CATEGORIES.map((cat) => {
@@ -416,12 +418,12 @@ export default function BookShelfClient({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="শিরোনাম বা শব্দ দিয়ে খুঁজুন..."
+              aria-label="বই বা গল্প খুঁজুন"
               className="w-full pl-6 pr-2 py-1.5 bg-transparent border-b border-[var(--rule-hairline)] focus:border-[var(--ink-primary)] focus:outline-none text-xs sm:text-sm text-[var(--ink-primary)] placeholder:text-[var(--ink-muted)]"
             />
           </div>
         </div>
 
-        {/* Bookshelf Grid */}
         {filteredBooks.length === 0 ? (
           <div className="py-20 text-center border border-[var(--rule-hairline)] bg-[var(--bg-sheet)] px-4">
             <p className="font-displayBn text-xl text-[var(--ink-primary)]">
@@ -452,7 +454,6 @@ export default function BookShelfClient({
                   <div className="pb-4 border-b border-[var(--rule-hairline)] relative">
                     <BookCoverArtwork book={book} size="md" />
 
-                    {/* Discreet Bookmark Toggle */}
                     <button
                       onClick={(e) => toggleBookmark(e, book.slug)}
                       title={saved ? "সংরক্ষণ সরান" : "পরে পড়ার জন্য সংরক্ষণ করুন"}
@@ -467,7 +468,6 @@ export default function BookShelfClient({
                       />
                     </button>
 
-                    {/* Reading Progress Hairline if started */}
                     {prog && prog.pct > 0 && (
                       <div className="mt-3 h-[2px] w-full bg-[var(--rule-hairline)]">
                         <div
@@ -503,33 +503,63 @@ export default function BookShelfClient({
         )}
       </main>
 
-      {/* Classic Literary Colophon Footer */}
+      {/* Clean Public Colophon Footer — NO Admin Panel Link Visible to Public! */}
       <footer className="border-t border-[var(--rule-hairline)] bg-[var(--bg-sheet)] py-10 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--ink-muted)]">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-5 text-xs text-[var(--ink-muted)]">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-center sm:text-left">
-            <span className="font-masthead text-sm tracking-[0.24em] font-semibold text-[var(--ink-primary)]">
+            <Link
+              href="/"
+              className="font-masthead text-sm tracking-[0.24em] font-semibold text-[var(--ink-primary)]"
+            >
               {settings.site_title}
-            </span>
+            </Link>
             <span className="hidden sm:inline">—</span>
             <span className="font-serifBn">{settings.site_tagline}</span>
           </div>
 
-          <div className="flex items-center gap-6">
+          <nav
+            aria-label="বিভাগসমূহ"
+            className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
+          >
+            <Link
+              href="/category/masterpiece"
+              className="hover:text-[var(--ink-primary)] transition-colors"
+            >
+              মাস্টারপিস গল্প
+            </Link>
+            <Link
+              href="/category/horror"
+              className="hover:text-[var(--ink-primary)] transition-colors"
+            >
+              হরর ও অতিপ্রাকৃত
+            </Link>
+            <Link
+              href="/category/love"
+              className="hover:text-[var(--ink-primary)] transition-colors"
+            >
+              প্রেম ও সংসার
+            </Link>
+            <Link
+              href="/category/thriller"
+              className="hover:text-[var(--ink-primary)] transition-colors"
+            >
+              রহস্য ও থ্রিলার
+            </Link>
+            <Link
+              href="/category/series"
+              className="hover:text-[var(--ink-primary)] transition-colors"
+            >
+              ধারাবাহিক উপন্যাস
+            </Link>
             <a
               href={settings.facebook_page_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-[var(--accent-ink)] transition-colors"
+              className="text-[var(--accent-ink)] hover:underline transition-colors"
             >
-              ফেসবুক পাতা
+              ফেসবুক পাতা ↗
             </a>
-            <Link
-              href="/admin"
-              className="hover:text-[var(--ink-primary)] transition-colors"
-            >
-              সম্পাদনা দপ্তর
-            </Link>
-          </div>
+          </nav>
         </div>
       </footer>
     </div>

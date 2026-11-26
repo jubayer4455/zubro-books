@@ -46,10 +46,50 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://zubrobooks.vercel.app"),
-  title: "ZUBRO — না বলা কথা ও জীবনের গল্প",
+  title: {
+    default: "ZUBRO — না বলা কথা ও জীবনের গল্প | বাংলা গল্প ও উপন্যাসের ডিজিটাল বইঘর",
+    template: "%s",
+  },
   description:
-    "ZUBRO পেজের দীর্ঘ আখ্যান, ধারাবাহিক উপন্যাস, জীবনমুখী গল্প ও অতিপ্রাকৃত রহস্যের ডিজিটাল গ্রন্থশালা।",
+    "ZUBRO পেজের দীর্ঘ বাংলা মাস্টারপিস গল্প, অতিপ্রাকৃত হরর, প্রেম ও সংসার, রহস্য থ্রিলার এবং ধারাবাহিক উপন্যাসের ডিজিটাল বইঘর। বইয়ের পাতার মতো আরামে বিনামূল্যে পড়ুন।",
+  keywords: [
+    "ZUBRO",
+    "জুব্রো",
+    "বাংলা গল্প",
+    "বাংলা হরর গল্প",
+    "ভূতের গল্প",
+    "বাংলা ভালোবাসার গল্প",
+    "বাংলা রহস্য ও থ্রিলার গল্প",
+    "বাংলা ধারাবাহিক উপন্যাস",
+    "না বলা কথা ও জীবনের গল্প",
+    "bangla golpo",
+    "bangla horror story",
+    "bangla thriller golpo",
+    "bangla upanyas online",
+    "zubro books",
+  ],
+  authors: [{ name: "ZUBRO", url: "https://zubrobooks.vercel.app" }],
+  creator: "ZUBRO",
+  publisher: "ZUBRO",
+  category: "books",
   manifest: "/manifest.webmanifest",
+  alternates: {
+    canonical: "https://zubrobooks.vercel.app",
+    types: {
+      "application/rss+xml": "https://zubrobooks.vercel.app/feed.xml",
+    },
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   appleWebApp: {
     capable: true,
     title: "ZUBRO",
@@ -61,11 +101,18 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
+    locale: "bn_BD",
     siteName: "ZUBRO — না বলা কথা ও জীবনের গল্প",
+    title: "ZUBRO — না বলা কথা ও জীবনের গল্প | বাংলা ডিজিটাল বইঘর",
+    description:
+      "বাংলা মাস্টারপিস গল্প, গা ছমছমে হরর ও ধারাবাহিক উপন্যাসের ডিজিটাল গ্রন্থশালা। প্রতিটি গল্প একেকটি ছাপা বই।",
+    url: "https://zubrobooks.vercel.app",
+  },
+  twitter: {
+    card: "summary_large_image",
     title: "ZUBRO — না বলা কথা ও জীবনের গল্প",
     description:
-      "ZUBRO পেজের দীর্ঘ আখ্যান, ধারাবাহিক উপন্যাস ও অতিপ্রাকৃত রহস্যের ডিজিটাল গ্রন্থশালা।",
-    url: "https://zubrobooks.vercel.app",
+      "বাংলা মাস্টারপিস গল্প, হরর ও ধারাবাহিক উপন্যাসের ডিজিটাল গ্রন্থশালা।",
   },
 };
 

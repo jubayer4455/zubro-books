@@ -3,13 +3,8 @@
 import React, { useState } from "react";
 import { ZubroBook } from "@/lib/supabase";
 
-/**
- * Six authentic Dhaka Boimela / Penguin Classics clothbound book cover editions
- * (Zero neon gradients, zero emojis — pure tactile print design).
- */
 const CLOTH_EDITIONS = [
   {
-    // 0: Classic Cream Rag Paper & Vermilion Spine (ঐতিহ্য / সাহিত্য সংস্করণ)
     coverBg: "#EFE8DA",
     spineBg: "#7D231B",
     frameBorder: "rgba(43, 34, 27, 0.28)",
@@ -20,7 +15,6 @@ const CLOTH_EDITIONS = [
     colophonColor: "#4A4036",
   },
   {
-    // 1: Deep Oxblood Clothbound (রহস্য ও অতিপ্রাকৃত সংস্করণ)
     coverBg: "#2B1312",
     spineBg: "#170908",
     frameBorder: "rgba(216, 195, 165, 0.32)",
@@ -31,7 +25,6 @@ const CLOTH_EDITIONS = [
     colophonColor: "#B8A894",
   },
   {
-    // 2: Botanical Forest Linen (চিরায়ত আখ্যান)
     coverBg: "#1A2821",
     spineBg: "#0F1814",
     frameBorder: "rgba(218, 208, 188, 0.3)",
@@ -42,7 +35,6 @@ const CLOTH_EDITIONS = [
     colophonColor: "#AAB3A9",
   },
   {
-    // 3: Prussian Ink Cloth (রাতের ডায়েরি)
     coverBg: "#1B2430",
     spineBg: "#10161F",
     frameBorder: "rgba(220, 214, 201, 0.28)",
@@ -53,7 +45,6 @@ const CLOTH_EDITIONS = [
     colophonColor: "#A5AEBA",
   },
   {
-    // 4: Raw Terracotta & Earth Linen (জীবনমুখী সংকলন)
     coverBg: "#5C2C20",
     spineBg: "#381911",
     frameBorder: "rgba(242, 232, 217, 0.32)",
@@ -64,7 +55,6 @@ const CLOTH_EDITIONS = [
     colophonColor: "#D4BEA9",
   },
   {
-    // 5: Warm Charcoal Letterpress Monograph
     coverBg: "#1E1C1A",
     spineBg: "#11100E",
     frameBorder: "rgba(214, 204, 188, 0.28)",
@@ -102,7 +92,6 @@ export default function BookCoverArtwork({
         className="physical-book-cover cloth-weave relative aspect-[2/3] w-full overflow-hidden select-none"
         style={{ backgroundColor: ed.coverBg }}
       >
-        {/* Left Cloth Quarter-Binding Spine Strip */}
         {!hasUploadedBanner && (
           <div
             className="absolute inset-y-0 left-0 w-3 sm:w-3.5 z-10"
@@ -110,34 +99,31 @@ export default function BookCoverArtwork({
           />
         )}
 
-        {/* Realistic Bookbinder's Spine Hinge Groove */}
         <div className="book-hinge-crease absolute inset-y-0 left-0 w-4 sm:w-5 z-20 pointer-events-none" />
 
         {hasUploadedBanner ? (
-          /* Clean Physical Print Cover — No duplicate HTML badges/titles overlaid! */
           <div className="relative w-full h-full">
             <img
               src={coverSrc!}
-              alt={book.title}
+              alt={`${book.title} — ${book.category_label || "বাংলা গল্প"} | ZUBRO বইয়ের প্রচ্ছদ`}
+              loading={size === "lg" ? "eager" : "lazy"}
               onError={() => setImgFailed(true)}
               className="w-full h-full object-cover block"
             />
-            {/* Subtle matte paper vignette for physical realism */}
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
-                boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.18), inset 0 0 28px rgba(0,0,0,0.16)",
+                boxShadow:
+                  "inset 0 0 0 1px rgba(0,0,0,0.18), inset 0 0 28px rgba(0,0,0,0.16)",
               }}
             />
           </div>
         ) : (
-          /* Authentic Bengali Clothbound Print Edition Cover */
           <div className="relative z-10 w-full h-full p-3.5 sm:p-5 pl-5 sm:pl-7 flex flex-col justify-between">
             <div
               className="w-full h-full p-3.5 sm:p-5 flex flex-col justify-between relative"
               style={{ border: `1px solid ${ed.frameBorder}` }}
             >
-              {/* Top Literary Rubric */}
               <div className="text-center">
                 <span
                   className="text-[10px] sm:text-[11px] tracking-[0.14em] font-medium block"
@@ -151,7 +137,6 @@ export default function BookCoverArtwork({
                 />
               </div>
 
-              {/* Center Book Title Plate */}
               <div className="my-auto py-2 text-center px-1">
                 <h3
                   style={{ color: ed.titleColor }}
@@ -175,7 +160,6 @@ export default function BookCoverArtwork({
                 )}
               </div>
 
-              {/* Bottom Publisher Colophon */}
               <div
                 className="pt-2.5 text-center"
                 style={{ borderTop: `1px solid ${ed.frameBorder}` }}

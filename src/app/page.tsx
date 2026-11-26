@@ -5,6 +5,7 @@ import {
   ZubroBook,
   ZubroSettings,
 } from "@/lib/supabase";
+import { buildWebsiteJsonLd } from "@/lib/seo";
 import BookShelfClient from "@/components/BookShelfClient";
 
 export const revalidate = 30;
@@ -27,5 +28,15 @@ export default async function HomePage() {
     ? { ...DEFAULT_SETTINGS, ...settingsData }
     : DEFAULT_SETTINGS;
 
-  return <BookShelfClient books={books} settings={settings} />;
+  const jsonLd = buildWebsiteJsonLd(books, settings);
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <BookShelfClient books={books} settings={settings} />
+    </>
+  );
 }
