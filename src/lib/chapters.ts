@@ -23,6 +23,17 @@ const BN_ORDINALS = [
   "দ্বাদশ পরিচ্ছেদ",
 ];
 
+const BN_EPISODE_ORDINALS = [
+  "প্রথম পর্ব",
+  "দ্বিতীয় পর্ব",
+  "তৃতীয় পর্ব",
+  "চতুর্থ পর্ব",
+  "পঞ্চম পর্ব",
+  "ষষ্ঠ পর্ব",
+  "সপ্তম পর্ব",
+  "অষ্টম পর্ব",
+];
+
 export function toBanglaNumber(num: number | string): string {
   return String(num).replace(/\d/g, (d) => BN_DIGITS[Number(d)] || d);
 }
@@ -40,19 +51,36 @@ export function formatBanglaDate(iso: string): string {
   }
 }
 
-export function parseStoryIntoChapters(rawContent: string): StoryChapter[] {
+export function parseStoryIntoChapters(
+  rawContent: string,
+  isSeries = false
+): StoryChapter[] {
   const text = String(rawContent || "").replace(/\r\n/g, "\n").trim();
   if (!text) return [];
+
+  const hasExplicitSeriesMarkers = /^\s*===\s*পর্ব\s*[১২৩৪৫৬৭৮৯০0-9]+\s*===\s*$/m.test(
+    text
+  );
 
   const lines = text.split("\n");
   const chapters: { marker: string; bodyLines: string[] }[] = [];
   let currentMarker = "১";
   let currentLines: string[] = [];
 
-  const chapterRegex = /^\s*(?:অধ্যায়\s*|পরিচ্ছেদ\s*|পর্ব\s*)?([১২৩৪৫৬৭৮৯০0-9]{1,2})\s*[.।:-]?\s*$/;
+  const seriesEpisodeRegex = /^\s*===\s*পর্ব\s*([১২৩৪৫৬৭৮৯০0-9]{1,2})\s*===\s*$/;
+  const chapterRegex =
+    /^\s*(?:অধ্যায়\s*|পরিচ্ছেদ\s*|পর্ব\s*)?([১২৩৪৫৬৭৮৯০0-9]{1,2})\s*[.।:-]?\s*$/;
+  const redundantSeriesHeaderRegex = /^\s*ধারাবাহিক উপন্যাস\s*[:：].*\(পর্ব\s*[১২৩৪৫৬৭৮৯০0-9/]+\)\s*$/;
 
   for (const line of lines) {
-    const match = line.match(chapterRegex);
+    if (isSeries && redundantSeriesHeaderRegex.test(line)) {
+      continue;
+    }
+
+    const match = hasExplicitSeriesMarkers
+      ? line.match(seriesEpisodeRegex)
+      : line.match(chapterRegex);
+
     if (match) {
       if (currentLines.some((l) => l.trim().length > 0)) {
         chapters.push({ marker: currentMarker, bodyLines: currentLines });
@@ -70,7 +98,9 @@ export function parseStoryIntoChapters(rawContent: string): StoryChapter[] {
 
   return chapters.map((ch, idx) => {
     const numBn = toBanglaNumber(idx + 1);
-    const ordinal = BN_ORDINALS[idx] || `পরিচ্ছেদ ${numBn}`;
+    const ordinal = isSeries
+      ? BN_EPISODE_ORDINALS[idx] || `পর্ব ${numBn}`
+      : BN_ORDINALS[idx] || `পরিচ্ছেদ ${numBn}`;
     const paragraphs = ch.bodyLines
       .join("\n")
       .split(/\n{2,}/)

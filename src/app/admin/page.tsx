@@ -195,9 +195,16 @@ export default function AdminDashboardPage() {
         CATEGORY_OPTIONS.find((c) => c.value === editingBook.category) ||
         CATEGORY_OPTIONS[0];
 
+      const preserveSeriesLabel =
+        editingBook.category === "series" &&
+        editingBook.category_label &&
+        editingBook.category_label.includes("পর্ব");
+
       const payload = {
         ...editingBook,
-        category_label: catObj.label,
+        category_label: preserveSeriesLabel
+          ? editingBook.category_label
+          : catObj.label,
         excerpt:
           editingBook.excerpt?.trim() ||
           editingBook.content.replace(/\s+/g, " ").trim().slice(0, 190) + "...",
@@ -405,7 +412,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-[#F4EFE6] text-[#191613]">
       <header className="sticky top-0 z-40 bg-[#FAF7F0]/95 backdrop-blur-sm border-b border-[#D6CCBC]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-15 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 min-h-[60px] py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <Link
               href="/"

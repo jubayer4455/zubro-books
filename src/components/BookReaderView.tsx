@@ -43,10 +43,12 @@ const PAPER_STYLES: Record<
     sheetBg: string;
     barBg: string;
     ink: string;
+    hoverInk: string;
     secondary: string;
     muted: string;
     rule: string;
     accent: string;
+    hoverAccent: string;
     accentHex: string;
   }
 > = {
@@ -56,10 +58,12 @@ const PAPER_STYLES: Record<
       "bg-[#FAF7F0] border-[#D8CFC0] text-[#191613] shadow-[0_12px_40px_rgba(28,22,16,0.07)]",
     barBg: "bg-[#F6F2E9]/95 border-[#D8CFC0] text-[#1A1714]",
     ink: "text-[#191613]",
+    hoverInk: "hover:text-[#191613]",
     secondary: "text-[#4D453C]",
     muted: "text-[#7D7366]",
     rule: "border-[#DDD4C5]",
     accent: "text-[#8B261D]",
+    hoverAccent: "hover:text-[#8B261D]",
     accentHex: "#8B261D",
   },
   sepia: {
@@ -68,10 +72,12 @@ const PAPER_STYLES: Record<
       "bg-[#F2E8D4] border-[#CBBBA0] text-[#221910] shadow-[0_12px_40px_rgba(45,32,16,0.1)]",
     barBg: "bg-[#ECE0C9]/95 border-[#CBBBA0] text-[#241B12]",
     ink: "text-[#221910]",
+    hoverInk: "hover:text-[#221910]",
     secondary: "text-[#574635]",
     muted: "text-[#786550]",
     rule: "border-[#CFC0A6]",
     accent: "text-[#7F231C]",
+    hoverAccent: "hover:text-[#7F231C]",
     accentHex: "#7F231C",
   },
   night: {
@@ -80,10 +86,12 @@ const PAPER_STYLES: Record<
       "bg-[#191613] border-[#2C2722] text-[#E9E1D4] shadow-[0_18px_50px_rgba(0,0,0,0.55)]",
     barBg: "bg-[#141210]/95 border-[#2C2722] text-[#E9E1D4]",
     ink: "text-[#EDE5D8]",
+    hoverInk: "hover:text-[#EDE5D8]",
     secondary: "text-[#B5AB9C]",
     muted: "text-[#7E7569]",
     rule: "border-[#2C2722]",
     accent: "text-[#CF6D4F]",
+    hoverAccent: "hover:text-[#CF6D4F]",
     accentHex: "#CF6D4F",
   },
 };
@@ -97,9 +105,11 @@ export default function BookReaderView({
   moreBooks: ZubroBook[];
   initialNotes?: ZubroReaderNote[];
 }) {
+  const isSeriesBook = Boolean(book.is_series) || book.category === "series";
+  const sectionWord = isSeriesBook ? "পর্ব" : "পরিচ্ছেদ";
   const chapters = useMemo(
-    () => parseStoryIntoChapters(book.content),
-    [book.content]
+    () => parseStoryIntoChapters(book.content, isSeriesBook),
+    [book.content, isSeriesBook]
   );
 
   const [paper, setPaper] = useState<ReaderPaper>("paper");
@@ -414,7 +424,7 @@ export default function BookReaderView({
         <div className="max-w-4xl mx-auto px-3 sm:px-6 h-12 sm:h-14 flex items-center justify-between gap-2">
           <Link
             href="/"
-            className={`inline-flex items-center gap-1.5 text-xs sm:text-sm shrink-0 ${p.secondary} hover:${p.ink} transition-colors`}
+            className={`inline-flex items-center gap-1.5 text-xs sm:text-sm shrink-0 ${p.secondary} ${p.hoverInk} transition-colors`}
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden xs:inline sm:inline">গ্রন্থতালিকা</span>
@@ -428,7 +438,7 @@ export default function BookReaderView({
               className={`inline-flex items-center gap-1 px-2.5 py-1 border ${p.rule} rounded-[2px] whitespace-nowrap transition-colors ${
                 soundMode !== "off"
                   ? `${p.accent} border-current font-medium`
-                  : `${p.muted} hover:${p.ink}`
+                  : `${p.muted} ${p.hoverInk}`
               }`}
             >
               {soundMode === "off" ? (
@@ -448,7 +458,7 @@ export default function BookReaderView({
                 className={`px-2 py-1 transition-colors ${
                   paper === "paper"
                     ? "bg-[#191613] text-[#FAF7F0] font-medium"
-                    : `${p.muted} hover:${p.ink}`
+                    : `${p.muted} ${p.hoverInk}`
                 }`}
               >
                 কাগজ
@@ -458,7 +468,7 @@ export default function BookReaderView({
                 className={`px-2 py-1 border-x ${p.rule} transition-colors ${
                   paper === "sepia"
                     ? "bg-[#573D26] text-[#FAF3E3] font-medium"
-                    : `${p.muted} hover:${p.ink}`
+                    : `${p.muted} ${p.hoverInk}`
                 }`}
               >
                 পুরনো
@@ -468,7 +478,7 @@ export default function BookReaderView({
                 className={`px-2 py-1 transition-colors ${
                   paper === "night"
                     ? "bg-[#E9E1D4] text-[#141210] font-medium"
-                    : `${p.muted} hover:${p.ink}`
+                    : `${p.muted} ${p.hoverInk}`
                 }`}
               >
                 রাত
@@ -481,7 +491,7 @@ export default function BookReaderView({
             >
               <button
                 onClick={() => adjustFont(-2)}
-                className={`px-2 py-1 ${p.secondary} hover:${p.ink}`}
+                className={`px-2 py-1 ${p.secondary} ${p.hoverInk}`}
                 title="অক্ষর ছোট করুন"
               >
                 অ−
@@ -489,7 +499,7 @@ export default function BookReaderView({
               <span className="h-3.5 w-[1px] bg-current opacity-15" />
               <button
                 onClick={() => adjustFont(2)}
-                className={`px-2 py-1 ${p.secondary} hover:${p.ink}`}
+                className={`px-2 py-1 ${p.secondary} ${p.hoverInk}`}
                 title="অক্ষর বড় করুন"
               >
                 অ+
@@ -513,7 +523,7 @@ export default function BookReaderView({
             {chapters.length > 1 && (
               <button
                 onClick={() => setTocOpen(!tocOpen)}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 border ${p.rule} rounded-[2px] shrink-0 ${p.secondary} hover:${p.ink}`}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 border ${p.rule} rounded-[2px] shrink-0 ${p.secondary} ${p.hoverInk}`}
               >
                 <List className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">সূচিপত্র</span>
@@ -554,7 +564,7 @@ export default function BookReaderView({
                   className={`px-3 py-2 text-left text-xs border rounded-[2px] transition-colors ${
                     pagedMode && currentChapter === ch.index
                       ? `border-current font-semibold ${p.accent}`
-                      : `${p.rule} ${p.secondary} hover:${p.ink}`
+                      : `${p.rule} ${p.secondary} ${p.hoverInk}`
                   }`}
                 >
                   {ch.ordinalTitle}
@@ -605,7 +615,9 @@ export default function BookReaderView({
                       পাঠসময় {toBanglaNumber(book.reading_time_minutes)} মিনিট
                     </span>
                     <span>·</span>
-                    <span>{toBanglaNumber(chapters.length)}টি পরিচ্ছেদ</span>
+                    <span>
+                      {toBanglaNumber(chapters.length)}টি {sectionWord}
+                    </span>
                     <span>·</span>
                     <span>{formatBanglaDate(book.published_at)}</span>
                     {views > 0 && (
@@ -620,7 +632,7 @@ export default function BookReaderView({
                     {chapters.length > 1 && (
                       <button
                         onClick={() => setPagedMode(!pagedMode)}
-                        className={`underline underline-offset-4 ${p.secondary} hover:${p.accent} transition-colors`}
+                        className={`underline underline-offset-4 ${p.secondary} ${p.hoverAccent} transition-colors`}
                       >
                         {pagedMode
                           ? "একটানা সব পরিচ্ছেদ একসাথে পড়ুন"
@@ -714,10 +726,10 @@ export default function BookReaderView({
               <button
                 disabled={currentChapter === 0}
                 onClick={() => goToChapter(currentChapter - 1)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 border ${p.rule} rounded-[2px] text-xs sm:text-sm ${p.secondary} hover:${p.ink} disabled:opacity-30 disabled:pointer-events-none transition-colors`}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 border ${p.rule} rounded-[2px] text-xs sm:text-sm ${p.secondary} ${p.hoverInk} disabled:opacity-30 disabled:pointer-events-none transition-colors`}
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>পূর্ববর্তী পরিচ্ছেদ</span>
+                <span>পূর্ববর্তী {sectionWord}</span>
               </button>
 
               <span className={`text-xs ${p.muted}`}>
@@ -731,13 +743,13 @@ export default function BookReaderView({
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[2px] text-xs sm:text-sm font-medium text-[#FAF7F0] transition-opacity hover:opacity-90"
                   style={{ backgroundColor: p.accentHex }}
                 >
-                  <span>পরবর্তী পরিচ্ছেদ</span>
+                  <span>পরবর্তী {sectionWord}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
                 <Link
                   href="/"
-                  className={`inline-flex items-center gap-1.5 px-4 py-2.5 border ${p.rule} rounded-[2px] text-xs sm:text-sm ${p.secondary} hover:${p.ink}`}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2.5 border ${p.rule} rounded-[2px] text-xs sm:text-sm ${p.secondary} ${p.hoverInk}`}
                 >
                   <span>গ্রন্থতালিকায় ফিরুন</span>
                 </Link>
@@ -755,7 +767,7 @@ export default function BookReaderView({
                 className={`inline-flex items-center gap-2 px-4 py-2 border rounded-[2px] text-xs sm:text-sm transition-colors ${
                   liked
                     ? `border-current font-medium ${p.accent}`
-                    : `${p.rule} ${p.secondary} hover:${p.ink}`
+                    : `${p.rule} ${p.secondary} ${p.hoverInk}`
                 }`}
               >
                 <Heart className={`w-3.5 h-3.5 ${liked ? "fill-current" : ""}`} />
@@ -764,7 +776,7 @@ export default function BookReaderView({
 
               <button
                 onClick={() => setQuoteModalText(defaultQuoteSample)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 border ${p.rule} rounded-[2px] text-xs sm:text-sm ${p.secondary} hover:${p.ink} transition-colors`}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 border ${p.rule} rounded-[2px] text-xs sm:text-sm ${p.secondary} ${p.hoverInk} transition-colors`}
               >
                 <Quote className="w-3.5 h-3.5" />
                 <span>কোট কার্ড</span>
@@ -772,7 +784,7 @@ export default function BookReaderView({
 
               <button
                 onClick={handleShare}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 border ${p.rule} rounded-[2px] text-xs sm:text-sm ${p.secondary} hover:${p.ink} transition-colors`}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 border ${p.rule} rounded-[2px] text-xs sm:text-sm ${p.secondary} ${p.hoverInk} transition-colors`}
               >
                 {copied ? (
                   <>
@@ -793,7 +805,7 @@ export default function BookReaderView({
                 href={`https://www.facebook.com/${book.facebook_post_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`inline-flex items-center gap-1 text-xs sm:text-sm underline underline-offset-4 ${p.secondary} hover:${p.accent}`}
+                className={`inline-flex items-center gap-1 text-xs sm:text-sm underline underline-offset-4 ${p.secondary} ${p.hoverAccent}`}
               >
                 <span>ফেসবুকে মূল পোস্ট ও পাঠকদের মন্তব্য</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />

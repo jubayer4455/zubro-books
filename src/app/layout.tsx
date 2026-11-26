@@ -107,12 +107,21 @@ export const metadata: Metadata = {
     description:
       "বাংলা মাস্টারপিস গল্প, গা ছমছমে হরর ও ধারাবাহিক উপন্যাসের ডিজিটাল গ্রন্থশালা। প্রতিটি গল্প একেকটি ছাপা বই।",
     url: "https://zubrobooks.vercel.app",
+    images: [
+      {
+        url: "https://zubrobooks.vercel.app/api/og",
+        width: 1200,
+        height: 630,
+        alt: "ZUBRO — না বলা কথা ও জীবনের গল্প | বাংলা ডিজিটাল বইঘর",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "ZUBRO — না বলা কথা ও জীবনের গল্প",
     description:
       "বাংলা মাস্টারপিস গল্প, হরর ও ধারাবাহিক উপন্যাসের ডিজিটাল গ্রন্থশালা।",
+    images: ["https://zubrobooks.vercel.app/api/og"],
   },
 };
 
